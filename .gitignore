@@ -1,0 +1,14 @@
+﻿**/.idea
+**/.favorites.json
+**/test_results.xml
+**/.settings
+**/build
+**/.project
+**/.cproject
+**/.cache
+**/__pycache__
+**/*.png
+**/*.egg-info
+**/dott_data
+**/dist
+*.pyc
