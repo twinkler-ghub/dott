@@ -179,8 +179,8 @@ class CustomInstallCommand(bdist_wheel):
         if not self._gdb_dload_file_valid:
             with urllib.request.urlopen(self._gdb_url, context=ssl.SSLContext()) as u, open (self._gdb_dload_file, 'wb') as f:
                 f.write(u.read())
-                
-                
+
+
         print(' [done]')
         print('  Python 2.7 library for GDB', end='')
         sys.stdout.flush()
@@ -228,7 +228,7 @@ class CustomInstallCommand(bdist_wheel):
                 f = f.replace('\\\\', '/')
                 src_files.append(root + '/' + f)
             ret.append((root, src_files))
-    
+
         return ret
 
 
@@ -344,7 +344,7 @@ def _set_execperms_in_whl(dir: str, pattern: str):
 # ----------------------------------------------------------------------------------------------------------------------
 shared_classifiers = [
                   "Environment :: Console",
-                  "License :: OSI Approved :: Apache License 2.0",
+                  "License :: OSI Approved :: Apache Software License",
                   "Topic :: Software Development :: Testing",
                   "Topic :: Software Development :: Debuggers",
                   "Topic :: Software Development :: Embedded Systems"
