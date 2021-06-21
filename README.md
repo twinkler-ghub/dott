@@ -2,7 +2,7 @@
 
 This file provides a short overview about the scope of the Debugger-Based On Target Testing (DOTT)
 framework followed by a quick step-by-step guide to get people started. Full documentation is provided
-online at the [GitHub DOTT documentation site][7].
+online at the [GitHub DOTT documentation site][6].
 
 DOTT is a framework for on-target testing of firmware for __Arm Cortex-M__ microcontrollers.
 Tests are implemented in Python and they are executed on a host PC. The host PC is connected
@@ -116,7 +116,7 @@ __Optional__
 debugger by the instructions from the [DOTT documentation][11].
 
 * It is assumed that you have a Python interpreter installed. A recommended, self-contained Python
-distribution for Windows is [WinPython][2]. For detailed setup instructions and Linux-specific aspects please check the [DOTT Setup Guide][6].
+distribution for Windows is [WinPython][2]. For detailed setup instructions and Linux-specific aspects please check the [DOTT Setup Guide][7].
 
 * It is recommended (but not required) to create and activate a virtual environment for DOTT:
 ```shell script
@@ -206,8 +206,8 @@ test_example_functions.py::TestExampleFunctions::test_global_data_access PASSED 
 [3]: https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack
 [4]: https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm
 [5]: https://www.st.com/en/evaluation-tools/nucleo-f072rb.html
-[6]: https://github.com/twinkler-ams-osram/dott_docu/SetupAndTarget.html
-[7]: https://twinkler-ams-osram.github.io/dott_docu/
+[6]: https://twinkler-ams-osram.github.io/dott_docu/
+[7]: https://twinkler-ams-osram.github.io/dott_docu//SetupAndTarget.html
 [8]: https://twinkler-ams-osram.github.io/dott_docu//ComponentTesting.html
 [9]: https://twinkler-ams-osram.github.io/dott_docu//SystemTesting.html
 [10]: https://github.com/twinkler-ams-osram/dott/releases
