@@ -113,7 +113,7 @@ __Optional__
 * As a pre-requisite download and install the [Segger J-Link software][3] to its default location.
 
 * If you are using the recommended STM32F072 Nucleo-64 reference board, convert its ST-LINK debugger to a J-Link
-debugger by the instructions from the [DOTT documentation][11].
+debugger by the instructions from the [DOTT documentation (reference board section)][11].
 
 * It is assumed that you have a Python interpreter installed. A recommended, self-contained Python
 distribution for Windows is [WinPython][2]. For detailed setup instructions and Linux-specific aspects please check the [DOTT Setup Guide][7].
