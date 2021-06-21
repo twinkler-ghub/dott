@@ -1,6 +1,6 @@
 # DOTT - Debugger-Based On-Target Testing
 
-This file provides a short overview about the scope of the Debugger-Based On Target Testing (DOTT) 
+This file provides a short overview about the scope of the Debugger-Based On Target Testing (DOTT)
 framework followed by a quick step-by-step guide to get people started. Full documentation is provided
 online at the [GitHub DOTT documentation site][7].
 
@@ -33,14 +33,14 @@ DOTT aims to enable firmware testing ...
 * ... using the __original compiler__
 
 DOTT also comes with the benefit that the test runner and tests are executed on the host PC and do not have to
-be compiled for the target device or downloaded to it. Executing the tests on a host PC also makes it easy to 
-integrate whatever __additional test equipment__ is available/required (e.g., stimulus generation, interface 
+be compiled for the target device or downloaded to it. Executing the tests on a host PC also makes it easy to
+integrate whatever __additional test equipment__ is available/required (e.g., stimulus generation, interface
 hardware, logic analyzers, ...).
 
 ## How it works
 
 DOTT relies on the GNU Debugger (GDB) and its machine interface (MI). DOTT allows you to do a multitude of
-things such as writing very basic unit tests where you are calling functions implemented in your firmware 
+things such as writing very basic unit tests where you are calling functions implemented in your firmware
 with parameters of your choice. Suppose your firmware contains a function `example_Addition`. You can call it from
 a test in Python as follows:
 ```python
@@ -48,18 +48,18 @@ def test_example_Addition(self, target_load, target_reset):
     res = dott().target.eval('example_Addition(31, 11)')
     assert(42 == res)
 ```
-You did not only test that your function returns 42 when feeding in 31 and 11 as parameters but along the way, 
+You did not only test that your function returns 42 when feeding in 31 and 11 as parameters but along the way,
 via the `target_load` and `target_reset` pytest fixtures coming with DOTT, you also loaded the firmware binary
 to the target device and performed a target reset. This ensures that the target is in a known state when you
 execute your test.
 
-A slightly more involved example is the following one. Suppose your firmware has a function called 
+A slightly more involved example is the following one. Suppose your firmware has a function called
 `test_example_AdditionSubcalls` which in turn calls two other functions, namely `example_GetA` which returns
 the value of a local variable `a` and `exammple_GetB` which modifies the value of pointer variable `b`. The
 following test first calls `example_AdditionSubcalls` and checks for the expected result. Next, it changes
 what `example_GetA` and `example_GetB` return and then again checks if the new result matches the expected one.
 This demonstrates how DOTT can be used to inject data into the program execution which is very useful to test
-corner cases. 
+corner cases.
 ```python
 def test_example_Simple(self, target_load, target_reset):
     res = dott().target.eval('example_AdditionSubcalls()')
@@ -84,13 +84,13 @@ def test_example_Simple(self, target_load, target_reset):
     ipb.delete()
 
     assert(99 == res)
-``` 
+```
 These examples are barely scratching the surface of how you can use DOTT for firmware testing and things really
 start to get fun when you advance from basic unit/component testing to system testing where you integrate additional
 test equipment. With DOTT you can then observe, e.g., which (side)effects external test stimuli have on your firmware.
 System testing examples can be found in the [System Testing Section][9] of the DOTT documentation.
 
-## Dependencies and Requirements 
+## Dependencies and Requirements
 
 __Required__
 * host OS (tested): Windows 10 (64bit), Ubuntu Linux 20.04 (64bit)
@@ -115,8 +115,8 @@ __Optional__
 * If you are using the recommended STM32F072 Nucleo-64 reference board, convert its ST-LINK debugger to a J-Link
 debugger by the instructions from the [DOTT documentation][11].
 
-* It is assumed that you have a Python interpreter installed. A recommended, self-contained Python 
-distribution for Windows is [WinPython][2]. For detailed setup instructions and Linux-specific aspects please check the [DOTT Setup Guide][12].
+* It is assumed that you have a Python interpreter installed. A recommended, self-contained Python
+distribution for Windows is [WinPython][2]. For detailed setup instructions and Linux-specific aspects please check the [DOTT Setup Guide][6].
 
 * It is recommended (but not required) to create and activate a virtual environment for DOTT:
 ```shell script
@@ -206,10 +206,9 @@ test_example_functions.py::TestExampleFunctions::test_global_data_access PASSED 
 [3]: https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack
 [4]: https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm
 [5]: https://www.st.com/en/evaluation-tools/nucleo-f072rb.html
-[6]: https://github.com/twinkler-ams-osram/dott_docu
-[7]: https://github.com/twinkler-ams-osram/dott_docu
-[8]: https://github.com/twinkler-ams-osram/dott_docu/ComponentTesting.html
-[9]: https://github.com/twinkler-ams-osram/dott_docu/SystemTesting.html
+[6]: https://github.com/twinkler-ams-osram/dott_docu/SetupAndTarget.html
+[7]: https://twinkler-ams-osram.github.io/dott_docu/
+[8]: https://twinkler-ams-osram.github.io/dott_docu//ComponentTesting.html
+[9]: https://twinkler-ams-osram.github.io/dott_docu//SystemTesting.html
 [10]: https://github.com/twinkler-ams-osram/dott/releases
-[11]: https://ams-ag.github.io/dott-docu/ReferencePlatform.html
-[12]: https://github.com/twinkler-ams-osram/dott_docu/SetupAndTarget.html
+[11]: https://twinkler-ams-osram.github.io/dott_docu//ReferencePlatform.html
