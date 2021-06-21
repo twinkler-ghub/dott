@@ -152,7 +152,7 @@ $ pytest
 installed DOTT and successfully executed your first tests. Please consult the DOTT documentation to learn
 more about basic [component testing][8] as in this example as well as about more advanced [system testing][9]
 concepts.
-```shell script
+```
 [INFO] dott.py @197: DOTT runtime:          c:\tmp\venv_dott_install_test/dott_data (package-internal)
 [INFO] dott.py @198: DOTT runtime version:  package-internal
 [INFO] dott.py @201: work directory:        C:\tmp\dott_doc_examples_20191217\examples
