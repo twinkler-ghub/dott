@@ -21,6 +21,7 @@
 import binascii
 import math
 import struct
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Union, Dict
 
@@ -103,6 +104,84 @@ class TypedPtr:
 
 
 # -------------------------------------------------------------------------------------------------
+class _TargetMemAccess(ABC):
+    def __init__(self,  target: 'Target'):
+        self._target = target
+
+    @abstractmethod
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
+        # TODO: convert dst_addr to TypedPtr here before relaying? Or leave it in MemAccess as shared base function?
+        pass
+
+    @abstractmethod
+    def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
+        # TODO: convert src_addr to TypedPtr here before relaying? Or leave it in MemAccess as shared base function?
+        pass
+
+
+class _TargetMemAccessGdb(_TargetMemAccess):
+
+    def __init__(self, target: 'Target'):
+        super().__init__(target)
+
+    def _write_raw(self, dst_addr: Union[int, str, TypedPtr], values: bytes) -> None:
+        content = binascii.hexlify(struct.pack('<%dB' % len(values), *values)).decode('utf8')
+        self._target.exec(f'-data-write-memory-bytes {dst_addr} "{content}"')
+
+    def _bytes_needed(self, val):
+        if val == 0:
+            return 1
+        return int(math.log(val, 256)) + 1
+
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
+        if isinstance(val, int):
+            # note: int.to_bytes raises exception if type_sz != val size
+            bval = val.to_bytes(self._bytes_needed(val), byteorder=self._target.byte_order)
+            self._write_raw(dst_addr, bval * cnt)
+        elif isinstance(val, bytes):
+            self._write_raw(dst_addr, val * cnt)
+        elif isinstance(val, str):
+            bval = bytes(val, encoding='ascii')
+            self._write_raw(dst_addr, bval * cnt)
+        else:
+            raise ValueError('Only int, bytes or str (ascii) are supported as val types')
+
+    def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
+        num_remaining: int = num_bytes
+        if isinstance(src_addr, int):
+            addr_to_read = src_addr
+        elif isinstance(src_addr, str):
+            addr_to_read = int(src_addr, 10)
+        elif isinstance(src_addr, TypedPtr):
+            addr_to_read = src_addr.addr
+        else:
+            raise ValueError('Illegal type for src_addr')
+        content = ''
+
+        while num_remaining > 0:
+            bytes_to_read = 1024
+            if num_remaining < 1024:
+                bytes_to_read = num_remaining
+
+            data = self._target.exec(f'-data-read-memory-bytes -o 0 {addr_to_read} {bytes_to_read}')
+            buf = data['payload']['memory'][0]['contents']
+            buf_len = len(buf) / 2
+            content += buf
+
+            num_remaining -= buf_len
+            addr_to_read += buf_len
+
+        return binascii.unhexlify(content)
+
+
+class _TargetMemAccessJLink(_TargetMemAccess):
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
+        raise NotImplemented
+
+    def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
+        raise NotImplemented
+
+# -------------------------------------------------------------------------------------------------
 class TargetMem(object):
     def __init__(self, target: 'Target', target_mem_start_addr: int, target_mem_num_bytes: int, zero_mem: bool = True):
         """
@@ -115,21 +194,14 @@ class TargetMem(object):
             zero_mem: Zero out the on-target scratchpad memory when calling reset (default: True).
         """
         self._target: 'Target' = target
+        # TODO: instantiate memory access model based on config settings
+        self._mem_access: _TargetMemAccess = _TargetMemAccessGdb(self._target)
         self._sz_types: Dict = {}  # dict with target sizes (cache used by sizeof)
         self._heap_next_free_addr: int = target_mem_start_addr
         self._target_mem_base_addr: int = target_mem_start_addr
         self._target_mem_num_bytes: int = target_mem_num_bytes
         self._zero_mem = zero_mem
         self.reset()
-
-    def _bytes_needed(self, n):
-        if n == 0:
-            return 1
-        return int(math.log(n, 256)) + 1
-
-    def _write_raw(self, dst_addr: Union[int, str, TypedPtr], values: bytes) -> None:
-        content = binascii.hexlify(struct.pack('<%dB' % len(values), *values)).decode('utf8')
-        self._target.exec(f'-data-write-memory-bytes {dst_addr} "{content}"')
 
     def sizeof(self, target_type: str) -> int:
         """
@@ -160,17 +232,7 @@ class TargetMem(object):
             val: Content to be written to the target.
             cnt: The number of times val shall be repeated when writing to the target.
         """
-        if isinstance(val, int):
-            # note: int.to_bytes raises exception if type_sz != val size
-            bval = val.to_bytes(self._bytes_needed(val), byteorder=self._target.byte_order)
-            self._write_raw(dst_addr, bval * cnt)
-        elif isinstance(val, bytes):
-            self._write_raw(dst_addr, val * cnt)
-        elif isinstance(val, str):
-            bval = bytes(val, encoding='ascii')
-            self._write_raw(dst_addr, bval * cnt)
-        else:
-            raise ValueError('Only int, bytes or str (ascii) are supported as val types')
+        self._mem_access.write(dst_addr, val, cnt)
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
         """
@@ -183,31 +245,7 @@ class TargetMem(object):
         Returns:
             Returns the bytes read from the target.
         """
-        num_remaining: int = num_bytes
-        if isinstance(src_addr, int):
-            addr_to_read = src_addr
-        elif isinstance(src_addr, str):
-            addr_to_read = int(src_addr, 10)
-        elif isinstance(src_addr, TypedPtr):
-            addr_to_read = src_addr.addr
-        else:
-            raise ValueError('Illegal type for src_addr')
-        content = ''
-
-        while num_remaining > 0:
-            bytes_to_read = 1024
-            if num_remaining < 1024:
-                bytes_to_read = num_remaining
-
-            data = self._target.exec(f'-data-read-memory-bytes -o 0 {addr_to_read} {bytes_to_read}')
-            buf = data['payload']['memory'][0]['contents']
-            buf_len = len(buf) / 2
-            content += buf
-
-            num_remaining -= buf_len
-            addr_to_read += buf_len
-
-        return binascii.unhexlify(content)
+        return self._mem_access.read(src_addr, num_bytes)
 
     def reset(self) -> None:
         """
