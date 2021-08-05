@@ -313,19 +313,61 @@ class Target(NotifySubscriber):
     # This callback function is called from from gdbmi response handler when a new notification
     # with at target status change notification is received.
     def _notify_callback(self):
+        # Note: The wait_for_notification call immediately returns the new message as _notify_callback was called
+        # by the notifier upon the availability of a the new message. Hence, no actual waiting here.
         notify_msg = self.wait_for_notification()['message']
-
         with self._cv_target_running:
             if 'stopped' in notify_msg:
+                # Note: The call to _wait_until_halted is needed here since a 'stopped' notification from GDB is not
+                # always in-sync with GDB's internal target state. Hence, we explicitly wait until GDB's internal
+                # state agrees with the notification status.
+                self._internal_wait_halted()
                 self._is_target_running = False
                 self._cv_target_running.notify_all()
             elif 'running' in notify_msg:
                 self._is_target_running = True
                 self._cv_target_running.notify_all()
 
-    def is_running(self):
+    def _internal_wait_halted(self, wait_secs: float = 1.0):
+        start_time = time.time()
+        while (time.time() - start_time) <= wait_secs:
+            try:
+                # Note: Ideally the documented (but not implemented) GDB MI command "-target-exec-status" would be used
+                # here to check if the target is halted or not. As an alternative, an info command is used which
+                # raises and exception if the target is running.
+                self.exec('-thread-info')
+                # command succeeded => target is halted
+                return
+            except:
+                log.debug('m')
+                time.sleep(0)  # yield current thread
+        raise DottException(f'Target not halted within {wait_secs} second(s) despite reported as "stopped" by GDB.')
+
+    def is_running(self) -> bool:
+        """
+        Use this function to check if the target is running or not.
+
+        Returns:
+            Returns True if the target is running, false otherwise.
+        """
+
         with self._cv_target_running:
             return self._is_target_running
+
+    def wait_halted(self, wait_secs: float = 1.0) -> None:
+        """
+        Wait until target is halted. Not that this command does not actually halt the target. To do so, explicitly call
+        halt() before this command. The wait_halted command is typically not needed in user code as halt ensures that
+        the target is halted when it returns.
+
+        Args:
+            wait_secs: Number of seconds to wait before a DottExeception is thrown.
+        """
+        with self._cv_target_running:
+            if self._is_target_running:
+                self._cv_target_running.wait(wait_secs)
+            if self._is_target_running:
+                raise DottException(f'Target did not change to "halted" state within {wait_secs} seconds.')
 
     ###############################################################################################
     # Breakpoint-related target commands

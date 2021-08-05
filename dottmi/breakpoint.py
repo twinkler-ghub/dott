@@ -129,6 +129,7 @@ class HaltPoint(Breakpoint):
 
     def reached_internal(self, payload=None) -> None:
         self._hits += 1
+        self._dott_target.wait_halted(wait_secs=1)
         self.reached()
         # queue is used to notify one potentially waiting thread
         self._q.put(None, block=False)
@@ -157,7 +158,7 @@ class HaltPoint(Breakpoint):
 class Barrier(HaltPoint):
     def __init__(self, location: str, temporary: bool = False, parties: int = 1, target: 'Target' = None):
         if parties != 1:
-            raise DottException('DOTT barrier implementation only support 1 party (thread) '
+            raise DottException('DOTT barrier implementation only supports 1 party (thread) '
                                 'to wait for a location to be reached.')
 
         HaltPoint.__init__(self, location, temporary, target)
