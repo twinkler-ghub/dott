@@ -94,10 +94,6 @@ class GdbMi(object):
         msg = self._response_dicts['result'].pop(token, timeout)
         if (msg['message']) == 'done':
             if (msg['payload']) is not None:
-                if self._trace_commands:
-                    self._trace_total_walltime = self._trace_total_walltime + float(msg['payload']['time']['wallclock'])
-                    log.debug("%d: elapsed wall time: %s (total: %f)" % (token, msg['payload']['time']['wallclock'],
-                                                                         self._trace_total_walltime))
                 return msg
 
         elif (msg['message']) == 'error':
