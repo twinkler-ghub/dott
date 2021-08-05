@@ -299,7 +299,10 @@ class NotifySubscriber(object):
 
     def notify(self, msg: Dict) -> None:
         self._notifications.put(msg)
-        self._notify_callback()
+        # Note: Callback handlers are executed in own thread to ensure that main gdbmi thread is not blocked. This is
+        # important as callback handlers can issue their own GDB requests which might lead to deadlocks if callback
+        # handlers are called in gdbmi context.
+        threading.Thread(target=self._notify_callback).start()
 
     def _notify_callback(self):
         pass
