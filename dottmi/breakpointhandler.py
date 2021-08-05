@@ -18,7 +18,6 @@
 # Authors:
 # - Thomas Winkler, ams AG, thomas.winkler@ams.com
 
-import logging
 import queue
 import threading
 from typing import Dict
@@ -26,8 +25,6 @@ from typing import Dict
 from dottmi.breakpoint import Breakpoint
 from dottmi.gdb_mi import NotifySubscriber
 from dottmi.utils import log
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 # -------------------------------------------------------------------------------------------------
