@@ -23,7 +23,7 @@ import math
 import struct
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Union, Dict
+from typing import Union, Dict, List, Tuple
 
 from dottmi.dottexceptions import DottException
 from dottmi.utils import log
@@ -64,7 +64,7 @@ class TypedPtr:
     @property
     def type(self) -> str:
         """
-        This function returns the they of the variable the pointer is pointing to.
+        This function returns the type of the variable the pointer is pointing to.
 
         Returns:
             Returns the type of the variable the pointer is pointing to.
@@ -91,6 +91,35 @@ class TypedPtr:
             Dereferences the pointer and returns the value.
         """
         return self._target.eval(f'*({self.__str__()})')
+
+    @val.setter
+    def val(self, value: Union[int, float, bool, str, bytes]):
+        if isinstance(value, int):
+            value_num_bits: int = value.bit_length()
+            value_negtive: bool = (value < 0)
+
+            uint_maping: List[Tuple[int, str]] = [(64, 'uint64_t'), (32, 'uint32_t'), (16, 'uint16_t'), (8, 'uint8_t')]
+            int_mapping: List[Tuple[int, str]] = [(64, 'int64_t'), (32, 'int32_t'), (16, 'int16_t'), (8, 'int8_t')]
+
+            if value >= 0 and (value_num_bits, self._var_type) in uint_maping:
+                self._target.eval(f'{self.__str__()} = {value}')
+            #elif value >= 0 and
+            # if value < 0:
+            #     if (value_num_bits, self._var_type) in int
+            #
+            # if (num_bits, self._var_type) in valid_mappings:
+            #     pass
+            # elif self._var_type == 'int'
+
+        elif isinstance(value, float):
+            pass
+        elif isinstance(value, bool):
+            pass
+        else:
+            raise DottException(f'Type of provided value ({type(value)}) is not supported by value setter of typed '
+                                f'pointer! Please assign manually either by eval or mem.write.')
+        # TODO: expand with array types (int array, .. as well)
+
 
     def __str__(self) -> str:
         """
