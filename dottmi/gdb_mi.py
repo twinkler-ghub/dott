@@ -92,9 +92,12 @@ class GdbMi(object):
     def _mi_wait_token_result(self, token: int, timeout: float = None) -> Dict:
         # the pop call is blocking; if timeout is not None a TimeoutError exception is raised
         msg = self._response_dicts['result'].pop(token, timeout)
-        if (msg['message']) == 'done':
-            if (msg['payload']) is not None:
-                return msg
+
+        if (msg['message']) in ('done', 'running', 'stopped'):
+            # Note: When operating GDB in async mode (as DOTT does it) 'running' and 'stopped' should be seen
+            #       as equivalent ot 'done'. In fact, the notion of target state should only be based on notify
+            #       messages (cp. https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI-Result-Records.html#GDB_002fMI-Result-Records).
+            return msg
 
         elif (msg['message']) == 'error':
             if 'stopped while in a function called from GDB' in msg['payload']['msg']:
