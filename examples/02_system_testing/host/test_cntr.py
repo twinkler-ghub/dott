@@ -181,3 +181,45 @@ class TestCounters(object):
         dott().target.halt()
         timer_cnt = dott().target.eval('_timer_cnt')
         assert(8 == timer_cnt), 'Expected timer count to be 8'
+
+    ##
+    # \amsTestDesc This test checks if dott().target.ret() (without return value) works as intended.
+    # \amsTestPrec None
+    # \amsTestImpl Let target halt when entering a function and return from the function. Any side effects normally
+    #              caused by the function (e.g., altering a module variable) can not be observed.
+    # \amsTestResp Function side effects (alteration of module variable) can not be observed when returning early.
+    # \amsTestType System
+    # \amsTestReqs artf77204
+    def test_return(self, target_load, target_reset):
+        dt = dott().target
+
+        hp_before = HaltPoint(DOTT_LABEL('BEFORE_ALTER_MY_VAL'))
+        hp_alter = HaltPoint('alter_my_val')
+        hp_after = HaltPoint(DOTT_LABEL('AFTER_ALTER_MY_VAL'))
+
+        dt.cont()
+        hp_before.wait_complete()
+        assert dt.eval('_my_val') == 0
+
+        dt.cont()
+        hp_alter.wait_complete()
+        dt.ret()
+        assert dt.eval('_my_val') == 0
+
+        dt.cont()
+        hp_after.wait_complete()
+        assert dt.eval('_my_val') == 0
+
+        dt.reset()
+
+        dt.cont()
+        hp_before.wait_complete()
+        assert dt.eval('_my_val') == 0
+
+        dt.cont()
+        hp_alter.wait_complete()
+        assert dt.eval('_my_val') == 0
+
+        dt.cont()
+        hp_after.wait_complete()
+        assert dt.eval('_my_val') == 0xffaa5500

@@ -66,7 +66,11 @@ void SystemClock_Config(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+static volatile uint32_t _my_val = 0;
 
+static void __attribute__((used)) DOTT_NO_INLINE alter_my_val() {
+    _my_val = 0xffaa5500;
+}
 /* USER CODE END 0 */
 
 /**
@@ -78,6 +82,10 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
   DOTT_test_hook();
+
+  DOTT_LABEL_SAFE("BEFORE_ALTER_MY_VAL");
+  alter_my_val();
+  DOTT_LABEL_SAFE("AFTER_ALTER_MY_VAL");
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/

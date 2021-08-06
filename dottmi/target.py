@@ -281,7 +281,7 @@ class Target(NotifySubscriber):
 
     def ret(self, ret_val: Union[int, str] = None) -> None:
         if ret_val is None:
-            self.cli_exec('--exec-return')
+            self.exec('-exec-return')
         else:
             # note: we are relying on the cli here since the MI command '-exec-return' does not support return values
             self.cli_exec(f'return {ret_val}')
