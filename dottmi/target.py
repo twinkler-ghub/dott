@@ -298,11 +298,15 @@ class Target(NotifySubscriber):
             raise Exception('Target execution could not be halted!')
 
     def step(self):
+        with self._cv_target_running:
+            self._is_target_running = True
         self.exec('-exec-next')
         while self.is_running():
             pass
 
     def step_inst(self):
+        with self._cv_target_running:
+            self._is_target_running = True
         self.exec('-exec-next-instruction')
         while self.is_running():
             pass
@@ -339,7 +343,6 @@ class Target(NotifySubscriber):
                 # command succeeded => target is halted
                 return
             except:
-                log.debug('m')
                 time.sleep(0)  # yield current thread
         raise DottException(f'Target not halted within {wait_secs} second(s) despite reported as "stopped" by GDB.')
 
@@ -350,7 +353,6 @@ class Target(NotifySubscriber):
         Returns:
             Returns True if the target is running, false otherwise.
         """
-
         with self._cv_target_running:
             return self._is_target_running
 
