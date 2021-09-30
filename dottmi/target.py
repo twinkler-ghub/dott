@@ -25,13 +25,12 @@ from pathlib import Path, PurePosixPath
 from typing import Dict, Union
 from typing import List
 
+import dottmi.target_mem
 from dottmi.breakpointhandler import BreakpointHandler
-from dottmi.dott import DottConf
 from dottmi.dottexceptions import DottException
 from dottmi.gdb import GdbClient, GdbServer
 from dottmi.gdb_mi import NotifySubscriber
 from dottmi.symbols import BinarySymbols
-from dottmi.target_mem import TargetMem, TargetMemNoAlloc
 from dottmi.utils import cast_str, log
 
 logging.basicConfig(level=logging.DEBUG)
@@ -59,7 +58,7 @@ class Target(NotifySubscriber):
 
         # instantiate delegates
         self._symbols: BinarySymbols = BinarySymbols(self)
-        self._mem: TargetMem = TargetMemNoAlloc(self)
+        self._mem: dottmi.target_mem.TargetMem = dottmi.target_mem.TargetMemNoAlloc(self)
 
         # start breakpoint handler
         self._bp_handler: BreakpointHandler = BreakpointHandler()
@@ -176,7 +175,7 @@ class Target(NotifySubscriber):
 
     @mem.setter
     def mem(self, target_mem: 'TargetMem'):
-        if not isinstance(target_mem, TargetMem):
+        if not isinstance(target_mem, dottmi.target_mem.TargetMem):
             raise DottException('mem has to be an instance of TargetMem')
         self._mem = target_mem
 
@@ -186,7 +185,8 @@ class Target(NotifySubscriber):
 
     @property
     def byte_order(self) -> str:
-        return DottConf.get('device_endianess')
+        import dottmi.dott
+        return dottmi.dott.DottConf.get('device_endianess')
 
     @property
     def startup_delay(self) -> float:

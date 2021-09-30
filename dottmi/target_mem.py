@@ -25,6 +25,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Union, Dict, List, Tuple
 
+from dottmi.target import Target
 from dottmi.dottexceptions import DottException
 from dottmi.utils import log
 
@@ -120,7 +121,6 @@ class TypedPtr:
                                 f'pointer! Please assign manually either by eval or mem.write.')
         # TODO: expand with array types (int array, .. as well)
 
-
     def __str__(self) -> str:
         """
         This function returns a string containing address in hex (pre-fixed with 0x) together with the type of
@@ -135,7 +135,7 @@ class TypedPtr:
 # -------------------------------------------------------------------------------------------------
 class _TargetMemAccess(ABC):
     def __init__(self,  target: 'Target'):
-        self._target = target
+        self._target: dottmi.target.Target = target
 
     def _to_int(self, val: Union[int, str, TypedPtr]) -> int:
         """
@@ -234,7 +234,6 @@ class _TargetMemAccessGdb(_TargetMemAccess):
         addr_to_write: int = self._to_int(dst_addr)
 
         content = binascii.hexlify(struct.pack('<%dB' % len(bval), *bval)).decode('utf8')
-        log.debug(f'-data-write-memory-bytes 0x{addr_to_write:x} "{content}"')
         self._target.exec(f'-data-write-memory-bytes 0x{addr_to_write:x} "{content}"')
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
@@ -262,10 +261,12 @@ class _TargetMemAccessGdb(_TargetMemAccess):
 
 
 class _TargetMemAccessJLink(_TargetMemAccess):
-    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
         """
         JLINK-based implementation of abstract method in base class. See documentation there.
         """
+
+        log.debug(self._target._gdb_server.device_id)
         raise NotImplemented
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
@@ -315,7 +316,7 @@ class TargetMem(object):
 
         return self._sz_types[target_type]
 
-    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
         """
         This function writes the provided data to target memory at destination address. If cnt is other than one,
         the provided data is replicated cnt times.
@@ -323,9 +324,8 @@ class TargetMem(object):
         Args:
             dst_addr: The target's destination memory address to write to.
             val: Content to be written to the target.
-            cnt: The number of times val shall be repeated when writing to the target.
         """
-        self._mem_access.write(dst_addr, val, cnt)
+        self._mem_access.write(dst_addr, val)
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
         """
@@ -405,7 +405,7 @@ class TargetMem(object):
         type_sz: int = self.sizeof(var_type)
         p_var: TypedPtr = self.alloc(type_sz * cnt, var_name, align)
         if val is not None:
-            self.write(p_var, val, cnt)
+            self.write(p_var, val * cnt)
 
         # optionally create a gdb convenience variable and cast to concrete type as specified by var_type
         if var_name is not None:

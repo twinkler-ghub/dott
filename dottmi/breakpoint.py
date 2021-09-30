@@ -27,7 +27,7 @@ import warnings
 from abc import *
 from typing import List, Union, Dict
 
-from dottmi.dott import dott
+import dottmi
 from dottmi.dottexceptions import DottException
 from dottmi.gdb_mi import GdbMiContext
 from dottmi.gdb_shared import BpMsg, BpSharedConf
@@ -40,7 +40,7 @@ class Breakpoint(ABC):
     def __init__(self, location: str, target: 'Target' = None):
         self._dott_target: 'Target' = target
         if self._dott_target is None:
-            self._dott_target: 'Target' = dott().target  # Note: _target used by Thread; InterceptPoint inherits from it
+            self._dott_target: 'Target' = dottmi.dott.dott().target  # Note: _target used by Thread; InterceptPoint inherits from it
 
         if not location.startswith(('+', '-', '*')):  # GDB locations may be an address (*)
                                                       # or a line offset (+/-) instead of a symbol
