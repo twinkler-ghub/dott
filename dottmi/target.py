@@ -168,13 +168,13 @@ class Target(NotifySubscriber):
         return self._symbols
 
     @property
-    def mem(self) -> 'TargetMem':
+    def mem(self) -> 'dottmi.target_mem.TargetMem':
         if self._mem is None:
             raise DottException('No on-target memory access model set at this point!')
         return self._mem
 
     @mem.setter
-    def mem(self, target_mem: 'TargetMem'):
+    def mem(self, target_mem: 'dottmi.target_mem.TargetMem'):
         if not isinstance(target_mem, dottmi.target_mem.TargetMem):
             raise DottException('mem has to be an instance of TargetMem')
         self._mem = target_mem
@@ -185,7 +185,6 @@ class Target(NotifySubscriber):
 
     @property
     def byte_order(self) -> str:
-        import dottmi.dott
         return dottmi.dott.DottConf.get('device_endianess')
 
     @property

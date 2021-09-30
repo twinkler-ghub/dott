@@ -265,8 +265,6 @@ class _TargetMemAccessJLink(_TargetMemAccess):
         """
         JLINK-based implementation of abstract method in base class. See documentation there.
         """
-
-        log.debug(self._target._gdb_server.device_id)
         raise NotImplemented
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
