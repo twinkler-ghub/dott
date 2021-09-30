@@ -137,54 +137,112 @@ class _TargetMemAccess(ABC):
     def __init__(self,  target: 'Target'):
         self._target = target
 
+    def _to_int(self, val: Union[int, str, TypedPtr]) -> int:
+        """
+        Converts given val to int. Valid val types are int, str and TypedPtr.
+
+        For type str the assumed base is 10.
+
+        Args:
+            val: Content to be converted to int.
+
+        Returns:
+            Given content converted to int.
+        """
+        if isinstance(val, int):
+            int_val = val
+        elif isinstance(val, str):
+            int_val = int(val, 10)
+        elif isinstance(val, TypedPtr):
+            int_val = val.addr
+        else:
+            raise ValueError('Illegal type for value conversion to int.')
+        return int_val
+
+    def _to_bytes(self, val: Union[int, str, TypedPtr]) -> bytes:
+        """
+        Converts given val to bytes. Valid val types are int, str and TypedPtr.
+
+        For type int the minimal number of bytes  is used that is needed to hold the integer value. The byte order that
+        is used for the conversion is the byte order configured for the target.
+        For type str the assumed encoding is ASCII.
+
+        Args:
+            val: Content to be converted to bytes.
+
+        Returns:
+            Given content converted to bytes.
+        """
+        if isinstance(val, int):
+            # note: int.to_bytes raises exception if type_sz != val size
+            bval = val.to_bytes(self._bytes_needed(val), byteorder=self._target.byte_order)
+        elif isinstance(val, bytes):
+            bval = val
+        elif isinstance(val, str):
+            bval = bytes(val, encoding='ascii')
+        else:
+            raise ValueError('Only int, bytes or str (ascii) are supported as val types')
+        return bval
+
+    def _bytes_needed(self, val: int) -> int:
+        """
+        Returns the number of bytes needed to store the given int value.
+        """
+        if val == 0:
+            return 1
+        return int(math.log(val, 256)) + 1
+
     @abstractmethod
-    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
-        # TODO: convert dst_addr to TypedPtr here before relaying? Or leave it in MemAccess as shared base function?
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
+        """
+        Write val bytes to the target's memory at starting att dst_addr.
+
+        Args:
+            dst_addr: Target memory address to start writing at.
+            val: Content to be written to the target.
+        """
         pass
 
     @abstractmethod
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
-        # TODO: convert src_addr to TypedPtr here before relaying? Or leave it in MemAccess as shared base function?
+        """
+        Read memory of length num_bytes from target starting at address src_addr.
+
+        Args:
+            src_addr: Target memory address to start reading from.
+            num_bytes: Number of bytes to read.
+
+        Returns:
+            Bytes read from the target.
+        """
         pass
 
 
 class _TargetMemAccessGdb(_TargetMemAccess):
 
     def __init__(self, target: 'Target'):
+        """
+        Constructor.
+        """
         super().__init__(target)
 
-    def _write_raw(self, dst_addr: Union[int, str, TypedPtr], values: bytes) -> None:
-        content = binascii.hexlify(struct.pack('<%dB' % len(values), *values)).decode('utf8')
-        self._target.exec(f'-data-write-memory-bytes {dst_addr} "{content}"')
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
+        """
+        GDB-based implementation of abstract method in base class. See documentation there.
+        """
+        bval = self._to_bytes(val)
+        addr_to_write: int = self._to_int(dst_addr)
 
-    def _bytes_needed(self, val):
-        if val == 0:
-            return 1
-        return int(math.log(val, 256)) + 1
-
-    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
-        if isinstance(val, int):
-            # note: int.to_bytes raises exception if type_sz != val size
-            bval = val.to_bytes(self._bytes_needed(val), byteorder=self._target.byte_order)
-            self._write_raw(dst_addr, bval * cnt)
-        elif isinstance(val, bytes):
-            self._write_raw(dst_addr, val * cnt)
-        elif isinstance(val, str):
-            bval = bytes(val, encoding='ascii')
-            self._write_raw(dst_addr, bval * cnt)
-        else:
-            raise ValueError('Only int, bytes or str (ascii) are supported as val types')
+        content = binascii.hexlify(struct.pack('<%dB' % len(bval), *bval)).decode('utf8')
+        log.debug(f'-data-write-memory-bytes 0x{addr_to_write:x} "{content}"')
+        self._target.exec(f'-data-write-memory-bytes 0x{addr_to_write:x} "{content}"')
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
+        """
+        GDB-based implementation of abstract method in base class. See documentation there.
+        """
         num_remaining: int = num_bytes
-        if isinstance(src_addr, int):
-            addr_to_read = src_addr
-        elif isinstance(src_addr, str):
-            addr_to_read = int(src_addr, 10)
-        elif isinstance(src_addr, TypedPtr):
-            addr_to_read = src_addr.addr
-        else:
-            raise ValueError('Illegal type for src_addr')
+        addr_to_read = self._to_int(src_addr)
         content = ''
 
         while num_remaining > 0:
@@ -205,9 +263,15 @@ class _TargetMemAccessGdb(_TargetMemAccess):
 
 class _TargetMemAccessJLink(_TargetMemAccess):
     def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
+        """
+        JLINK-based implementation of abstract method in base class. See documentation there.
+        """
         raise NotImplemented
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
+        """
+        JLINK-based implementation of abstract method in base class. See documentation there.
+        """
         raise NotImplemented
 
 # -------------------------------------------------------------------------------------------------
