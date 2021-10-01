@@ -25,7 +25,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Union, Dict, List, Tuple
 
-from dottmi.target import Target
+import dottmi.dott
+from dottmi.target_adapters import TargetAdapterPylink
 from dottmi.dottexceptions import DottException
 from dottmi.utils import log
 
@@ -92,34 +93,6 @@ class TypedPtr:
             Dereferences the pointer and returns the value.
         """
         return self._target.eval(f'*({self.__str__()})')
-
-    @val.setter
-    def val(self, value: Union[int, float, bool, str, bytes]):
-        if isinstance(value, int):
-            value_num_bits: int = value.bit_length()
-            value_negtive: bool = (value < 0)
-
-            uint_maping: List[Tuple[int, str]] = [(64, 'uint64_t'), (32, 'uint32_t'), (16, 'uint16_t'), (8, 'uint8_t')]
-            int_mapping: List[Tuple[int, str]] = [(64, 'int64_t'), (32, 'int32_t'), (16, 'int16_t'), (8, 'int8_t')]
-
-            if value >= 0 and (value_num_bits, self._var_type) in uint_maping:
-                self._target.eval(f'{self.__str__()} = {value}')
-            #elif value >= 0 and
-            # if value < 0:
-            #     if (value_num_bits, self._var_type) in int
-            #
-            # if (num_bits, self._var_type) in valid_mappings:
-            #     pass
-            # elif self._var_type == 'int'
-
-        elif isinstance(value, float):
-            pass
-        elif isinstance(value, bool):
-            pass
-        else:
-            raise DottException(f'Type of provided value ({type(value)}) is not supported by value setter of typed '
-                                f'pointer! Please assign manually either by eval or mem.write.')
-        # TODO: expand with array types (int array, .. as well)
 
     def __str__(self) -> str:
         """
@@ -261,17 +234,28 @@ class _TargetMemAccessGdb(_TargetMemAccess):
 
 
 class _TargetMemAccessJLink(_TargetMemAccess):
+    def __init__(self, target: 'dottmi.dott.Target'):
+        """
+        Constructor.
+        """
+        super().__init__(target)
+        self._target_adapter: TargetAdapterPylink = TargetAdapterPylink(None, 0,
+                                                                        self._target._gdb_server._serial_number,
+                                                                        self._target._gdb_server.device_id)
+
     def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
         """
         JLINK-based implementation of abstract method in base class. See documentation there.
         """
-        raise NotImplemented
+        self._target_adapter.mem_write(self._to_int(dst_addr), self._to_bytes(val))
+        self._target.exec('monitor exec InvalidateCache')
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
         """
         JLINK-based implementation of abstract method in base class. See documentation there.
         """
-        raise NotImplemented
+        return self._target_adapter.mem_read(self._to_int(src_addr), num_bytes)
+
 
 # -------------------------------------------------------------------------------------------------
 class TargetMem(object):
@@ -288,6 +272,7 @@ class TargetMem(object):
         self._target: 'Target' = target
         # TODO: instantiate memory access model based on config settings
         self._mem_access: _TargetMemAccess = _TargetMemAccessGdb(self._target)
+        #self._mem_access: _TargetMemAccess = _TargetMemAccessJLink(self._target)
         self._sz_types: Dict = {}  # dict with target sizes (cache used by sizeof)
         self._heap_next_free_addr: int = target_mem_start_addr
         self._target_mem_base_addr: int = target_mem_start_addr
