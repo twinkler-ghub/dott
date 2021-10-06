@@ -55,7 +55,7 @@ class CustomInstallCommand(bdist_wheel):
 
         mirror_url: str = os.environ.get('DEP_MIRROR_URL')
 
-        self._gdb_url = 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/gcc-arm-none-eabi-9-2020-q2-update-win32.zip'
+        self._gdb_url = 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.07/gcc-arm-none-eabi-10.3-2021.07-win32.zip'
         if mirror_url is not None:
             print(f'Using DEP_MIRROR_URL ({mirror_url}) for GCC Windows download...')
             # note: use local mirror (declared in build environment), if available
@@ -238,7 +238,7 @@ class CustomInstallCommandLinuxAmd64(CustomInstallCommand):
 
         mirror_url: str = os.environ.get('DEP_MIRROR_URL')
 
-        self._gdb_url = 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2'
+        self._gdb_url = 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.07/gcc-arm-none-eabi-10.3-2021.07-x86_64-linux.tar.bz2'
         if mirror_url is not None:
             # note: use local mirror (declared in build environment), if available
             print(f'Using DEP_MIRROR_URL ({mirror_url}) for GCC Linux download...')
