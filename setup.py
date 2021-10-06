@@ -70,7 +70,7 @@ class CustomInstallCommand(bdist_wheel):
         if mirror_url is not None:
             # note: use local mirror (declared in build environment), if available
             print(f'Using DEP_MIRROR_URL ({mirror_url}) for Python 2.7 Windows download...')
-            self._python27_url = f'{mirror_url}/1.7.20170401/WinPython-32bit-2.7.13.1Zero.exe'
+            self._python27_url = f'{mirror_url}/WinPython-32bit-2.7.13.1Zero.exe'
         self._python27_version_info = 'WinPython 2.7.13.1, 32bit'
         self._python27_folder = os.path.join(CustomInstallCommand.data_apps_folder, 'python27')
         self._python27_dload_file = 'python27_win32.exe'
