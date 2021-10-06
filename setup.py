@@ -357,10 +357,9 @@ shared_author = "Thomas Winkler"
 shared_url = "https://github.com/twinkler-ams-osram/dott"
 
 shared_install_requires = [
-                       "ams-dott-runtime",
-                       "pygdbmi>=0.10.0.0",
-                       "pyOCD",
-                       "pylink-square",
+                       "ams-dott-runtime==1.2",
+                       "pygdbmi==0.10.0.1",
+                       "pylink-square==0.11.1",
                        "pytest",
                        "pytest-cov",
                        "pytest-instafail",
