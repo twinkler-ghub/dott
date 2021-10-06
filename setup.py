@@ -358,16 +358,12 @@ shared_url = "https://github.com/twinkler-ams-osram/dott"
 
 shared_install_requires = [
                        "ams-dott-runtime",
-                       "pygdbmi>=0.10.0.0",
-                       "pyOCD",
-                       "pylink-square",
+                       "pygdbmi==0.10.0.1",
+                       "pylink-square==0.11.1",
                        "pytest",
                        "pytest-cov",
                        "pytest-instafail",
-                       "pytest-repeat",
-                       "pyserial",
-                       "pigpio",
-                       "matplotlib"
+                       "pytest-repeat"
                    ]
 
 def setup_dott_runtime():
