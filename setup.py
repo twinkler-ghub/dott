@@ -71,7 +71,6 @@ class CustomInstallCommand(bdist_wheel):
             # note: use local mirror (declared in build environment), if available
             print(f'Using DEP_MIRROR_URL ({mirror_url}) for Python 2.7 Windows download...')
             self._python27_url = f'{mirror_url}/1.7.20170401/WinPython-32bit-2.7.13.1Zero.exe'
-        self._python27_url = 'https://srcint01.amsint.com/dott/download/dep_mirror/WinPython-32bit-2.7.13.1Zero.exe'
         self._python27_version_info = 'WinPython 2.7.13.1, 32bit'
         self._python27_folder = os.path.join(CustomInstallCommand.data_apps_folder, 'python27')
         self._python27_dload_file = 'python27_win32.exe'
@@ -241,9 +240,9 @@ class CustomInstallCommandLinuxAmd64(CustomInstallCommand):
 
         self._gdb_url = 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2'
         if mirror_url is not None:
-            # note: use local mirror to avoid sporadic download issues
+            # note: use local mirror (declared in build environment), if available
             print(f'Using DEP_MIRROR_URL ({mirror_url}) for GCC Linux download...')
-            self._gdb_url = 'https://srcint01.amsint.com/dott/download/dep_mirror/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2'
+            self._gdb_url = f'{mirror_url}/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2'
         self._gdb_version_info = 'gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux'
         self._gdb_folder = os.path.join(CustomInstallCommandLinuxAmd64.data_apps_folder, 'gdb')
         self._gdb_dload_file = 'gdb_linux_amd64.tar.bz2'
@@ -253,9 +252,9 @@ class CustomInstallCommandLinuxAmd64(CustomInstallCommand):
         self._python27_url = 'http://de.archive.ubuntu.com/ubuntu/pool/universe/p/python2.7/libpython2.7_2.7.18~rc1-2_amd64.deb'
         # note: use local mirror to avoid sporadic download issues
         if mirror_url is not None:
-            # note: use local mirror to avoid sporadic download issues
+            # note: use local mirror (declared in build environment), if available
             print(f'Using DEP_MIRROR_URL ({mirror_url}) for Python 2.7 Linux download...')
-            self._python27_url = 'https://srcint01.amsint.com/dott/download/dep_mirror/libpython2.7_2.7.18~rc1-2_amd64.deb'
+            self._python27_url = f'{mirror_url}/libpython2.7_2.7.18~rc1-2_amd64.deb'
         self._python27_version_info = 'libpython2.7.18~rc1-2, 64bit'
         self._python27_folder = os.path.join(CustomInstallCommandLinuxAmd64.data_apps_folder, 'python27')
         self._python27_dload_file = 'python27_linux_amd64.deb'
