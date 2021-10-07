@@ -131,13 +131,19 @@ class CustomInstallCommand(bdist_wheel):
 
         with ZipFile(self._gdb_dload_file, 'r') as zipObj:
             file_names = zipObj.namelist()
+            first_dir: str = file_names[0].split('/')[0]
+            gdb_folder_tmp = f'{self._gdb_folder}_tmp'
+
             for file_name in file_names:
                 if file_name.endswith('.py'):
-                    zipObj.extract(file_name, self._gdb_folder)
+                    zipObj.extract(file_name, gdb_folder_tmp)
                 else:
                     for gdb_file in gdb_files:
                         if file_name.endswith(gdb_file):
-                            zipObj.extract(file_name, self._gdb_folder)
+                            zipObj.extract(file_name, gdb_folder_tmp)
+
+        shutil.move(os.path.join(gdb_folder_tmp, first_dir), self._gdb_folder)
+        shutil.rmtree(gdb_folder_tmp)
 
         with open(os.path.join(self._gdb_folder, 'version.txt'), 'w+') as f:
             f.write(f'GDB and support tools extracted from GNU Arm Embedded Toolchain.\n')
@@ -227,7 +233,6 @@ class CustomInstallCommand(bdist_wheel):
                 f = f.replace('\\\\', '/')
                 src_files.append(root + '/' + f)
             ret.append((root, src_files))
-
         return ret
 
 
