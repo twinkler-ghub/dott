@@ -55,15 +55,15 @@ class CustomInstallCommand(bdist_wheel):
 
         mirror_url: str = os.environ.get('DEP_MIRROR_URL')
 
-        self._gdb_url = 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.07/gcc-arm-none-eabi-10.3-2021.07-win32.zip'
+        self._gdb_version_info = 'gcc-arm-none-eabi-10.3-2021.07-win32'
+        self._gdb_dload_file_sha256 = '2f4d7410e5b69a643f6ab1de20e1c74dbfd35b06f2b92900cf4160b869bef20f'
+        self._gdb_url = f'https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.07/{self._gdb_version_info}.zip'
         if mirror_url is not None:
-            print(f'Using DEP_MIRROR_URL ({mirror_url}) for GCC Windows download...')
             # note: use local mirror (declared in build environment), if available
-            self._gdb_url = f'{mirror_url}/gcc-arm-none-eabi-9-2020-q2-update-win32.zip'
-        self._gdb_version_info = 'gcc-arm-none-eabi-9-2020-q2-update-win32'
+            print(f'Using DEP_MIRROR_URL ({mirror_url}) for GCC Windows download...')
+            self._gdb_url = f'{mirror_url}/{self._gdb_version_info}.zip'
         self._gdb_folder = os.path.join(CustomInstallCommand.data_apps_folder, 'gdb')
         self._gdb_dload_file = 'gdb_win32.zip'
-        self._gdb_dload_file_sha256 = '49d6029ecd176deaa437a15b3404f54792079a39f3b23cb46381b0e6fbbe9070'
         self._gdb_dload_file_valid = False
 
         self._python27_url = 'https://github.com/winpython/winpython/releases/download/1.7.20170401/WinPython-32bit-2.7.13.1Zero.exe'
@@ -238,19 +238,18 @@ class CustomInstallCommandLinuxAmd64(CustomInstallCommand):
 
         mirror_url: str = os.environ.get('DEP_MIRROR_URL')
 
-        self._gdb_url = 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.07/gcc-arm-none-eabi-10.3-2021.07-x86_64-linux.tar.bz2'
+        self._gdb_version_info = 'gcc-arm-none-eabi-10.3-2021.07-x86_64-linux'
+        self._gdb_dload_file_sha256 = '8c5b8de344e23cd035ca2b53bbf2075c58131ad61223cae48510641d3e556cea'
+        self._gdb_url = f'https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.07/{self._gdb_version_info}.tar.bz2'
         if mirror_url is not None:
             # note: use local mirror (declared in build environment), if available
             print(f'Using DEP_MIRROR_URL ({mirror_url}) for GCC Linux download...')
-            self._gdb_url = f'{mirror_url}/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2'
-        self._gdb_version_info = 'gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux'
+            self._gdb_url = f'{mirror_url}/{self._gdb_version_info}.tar.bz2'
         self._gdb_folder = os.path.join(CustomInstallCommandLinuxAmd64.data_apps_folder, 'gdb')
         self._gdb_dload_file = 'gdb_linux_amd64.tar.bz2'
-        self._gdb_dload_file_sha256 = '5adc2ee03904571c2de79d5cfc0f7fe2a5c5f54f44da5b645c17ee57b217f11f'
         self._gdb_dload_file_valid = False
 
         self._python27_url = 'http://de.archive.ubuntu.com/ubuntu/pool/universe/p/python2.7/libpython2.7_2.7.18~rc1-2_amd64.deb'
-        # note: use local mirror to avoid sporadic download issues
         if mirror_url is not None:
             # note: use local mirror (declared in build environment), if available
             print(f'Using DEP_MIRROR_URL ({mirror_url}) for Python 2.7 Linux download...')
