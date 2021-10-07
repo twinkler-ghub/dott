@@ -26,7 +26,6 @@ from enum import Enum
 from typing import Union, Dict, List, Tuple
 
 import dottmi.dott
-from dottmi.target_adapters import TargetAdapterPylink
 from dottmi.dottexceptions import DottException
 from dottmi.utils import log
 
@@ -233,30 +232,6 @@ class _TargetMemAccessGdb(_TargetMemAccess):
         return binascii.unhexlify(content)
 
 
-class _TargetMemAccessJLink(_TargetMemAccess):
-    def __init__(self, target: 'dottmi.dott.Target'):
-        """
-        Constructor.
-        """
-        super().__init__(target)
-        self._target_adapter: TargetAdapterPylink = TargetAdapterPylink(None, 0,
-                                                                        self._target._gdb_server._serial_number,
-                                                                        self._target._gdb_server.device_id)
-
-    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
-        """
-        JLINK-based implementation of abstract method in base class. See documentation there.
-        """
-        self._target_adapter.mem_write(self._to_int(dst_addr), self._to_bytes(val))
-        self._target.exec('monitor exec InvalidateCache')
-
-    def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
-        """
-        JLINK-based implementation of abstract method in base class. See documentation there.
-        """
-        return self._target_adapter.mem_read(self._to_int(src_addr), num_bytes)
-
-
 # -------------------------------------------------------------------------------------------------
 class TargetMem(object):
     def __init__(self, target: 'Target', target_mem_start_addr: int, target_mem_num_bytes: int, zero_mem: bool = True):
@@ -270,9 +245,7 @@ class TargetMem(object):
             zero_mem: Zero out the on-target scratchpad memory when calling reset (default: True).
         """
         self._target: 'Target' = target
-        # TODO: instantiate memory access model based on config settings
         self._mem_access: _TargetMemAccess = _TargetMemAccessGdb(self._target)
-        #self._mem_access: _TargetMemAccess = _TargetMemAccessJLink(self._target)
         self._sz_types: Dict = {}  # dict with target sizes (cache used by sizeof)
         self._heap_next_free_addr: int = target_mem_start_addr
         self._target_mem_base_addr: int = target_mem_start_addr
