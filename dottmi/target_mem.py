@@ -21,9 +21,11 @@
 import binascii
 import math
 import struct
+from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Union, Dict
+from typing import Union, Dict, List, Tuple
 
+import dottmi.dott
 from dottmi.dottexceptions import DottException
 from dottmi.utils import log
 
@@ -63,7 +65,7 @@ class TypedPtr:
     @property
     def type(self) -> str:
         """
-        This function returns the they of the variable the pointer is pointing to.
+        This function returns the type of the variable the pointer is pointing to.
 
         Returns:
             Returns the type of the variable the pointer is pointing to.
@@ -103,6 +105,134 @@ class TypedPtr:
 
 
 # -------------------------------------------------------------------------------------------------
+class _TargetMemAccess(ABC):
+    def __init__(self,  target: 'Target'):
+        self._target: dottmi.target.Target = target
+
+    def _to_int(self, val: Union[int, str, TypedPtr]) -> int:
+        """
+        Converts given val to int. Valid val types are int, str and TypedPtr.
+
+        For type str the assumed base is 10.
+
+        Args:
+            val: Content to be converted to int.
+
+        Returns:
+            Given content converted to int.
+        """
+        if isinstance(val, int):
+            int_val = val
+        elif isinstance(val, str):
+            int_val = int(val, 10)
+        elif isinstance(val, TypedPtr):
+            int_val = val.addr
+        else:
+            raise ValueError('Illegal type for value conversion to int.')
+        return int_val
+
+    def _to_bytes(self, val: Union[int, str, TypedPtr]) -> bytes:
+        """
+        Converts given val to bytes. Valid val types are int, str and TypedPtr.
+
+        For type int the minimal number of bytes  is used that is needed to hold the integer value. The byte order that
+        is used for the conversion is the byte order configured for the target.
+        For type str the assumed encoding is ASCII.
+
+        Args:
+            val: Content to be converted to bytes.
+
+        Returns:
+            Given content converted to bytes.
+        """
+        if isinstance(val, int):
+            # note: int.to_bytes raises exception if type_sz != val size
+            bval = val.to_bytes(self._bytes_needed(val), byteorder=self._target.byte_order)
+        elif isinstance(val, bytes):
+            bval = val
+        elif isinstance(val, str):
+            bval = bytes(val, encoding='ascii')
+        else:
+            raise ValueError('Only int, bytes or str (ascii) are supported as val types')
+        return bval
+
+    def _bytes_needed(self, val: int) -> int:
+        """
+        Returns the number of bytes needed to store the given int value.
+        """
+        if val == 0:
+            return 1
+        return int(math.log(val, 256)) + 1
+
+    @abstractmethod
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
+        """
+        Write val bytes to the target's memory at starting att dst_addr.
+
+        Args:
+            dst_addr: Target memory address to start writing at.
+            val: Content to be written to the target.
+        """
+        pass
+
+    @abstractmethod
+    def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
+        """
+        Read memory of length num_bytes from target starting at address src_addr.
+
+        Args:
+            src_addr: Target memory address to start reading from.
+            num_bytes: Number of bytes to read.
+
+        Returns:
+            Bytes read from the target.
+        """
+        pass
+
+
+class _TargetMemAccessGdb(_TargetMemAccess):
+
+    def __init__(self, target: 'Target'):
+        """
+        Constructor.
+        """
+        super().__init__(target)
+
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
+        """
+        GDB-based implementation of abstract method in base class. See documentation there.
+        """
+        bval = self._to_bytes(val)
+        addr_to_write: int = self._to_int(dst_addr)
+
+        content = binascii.hexlify(struct.pack('<%dB' % len(bval), *bval)).decode('utf8')
+        self._target.exec(f'-data-write-memory-bytes 0x{addr_to_write:x} "{content}"')
+
+    def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
+        """
+        GDB-based implementation of abstract method in base class. See documentation there.
+        """
+        num_remaining: int = num_bytes
+        addr_to_read = self._to_int(src_addr)
+        content = ''
+
+        while num_remaining > 0:
+            bytes_to_read = 1024
+            if num_remaining < 1024:
+                bytes_to_read = num_remaining
+
+            data = self._target.exec(f'-data-read-memory-bytes -o 0 {addr_to_read} {bytes_to_read}')
+            buf = data['payload']['memory'][0]['contents']
+            buf_len = len(buf) / 2
+            content += buf
+
+            num_remaining -= buf_len
+            addr_to_read += buf_len
+
+        return binascii.unhexlify(content)
+
+
+# -------------------------------------------------------------------------------------------------
 class TargetMem(object):
     def __init__(self, target: 'Target', target_mem_start_addr: int, target_mem_num_bytes: int, zero_mem: bool = True):
         """
@@ -115,21 +245,13 @@ class TargetMem(object):
             zero_mem: Zero out the on-target scratchpad memory when calling reset (default: True).
         """
         self._target: 'Target' = target
+        self._mem_access: _TargetMemAccess = _TargetMemAccessGdb(self._target)
         self._sz_types: Dict = {}  # dict with target sizes (cache used by sizeof)
         self._heap_next_free_addr: int = target_mem_start_addr
         self._target_mem_base_addr: int = target_mem_start_addr
         self._target_mem_num_bytes: int = target_mem_num_bytes
         self._zero_mem = zero_mem
         self.reset()
-
-    def _bytes_needed(self, n):
-        if n == 0:
-            return 1
-        return int(math.log(n, 256)) + 1
-
-    def _write_raw(self, dst_addr: Union[int, str, TypedPtr], values: bytes) -> None:
-        content = binascii.hexlify(struct.pack('<%dB' % len(values), *values)).decode('utf8')
-        self._target.exec(f'-data-write-memory-bytes {dst_addr} "{content}"')
 
     def sizeof(self, target_type: str) -> int:
         """
@@ -150,7 +272,7 @@ class TargetMem(object):
 
         return self._sz_types[target_type]
 
-    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str], cnt: int = 1) -> None:
+    def write(self, dst_addr: Union[int, str, TypedPtr], val: Union[int, bytes, str]) -> None:
         """
         This function writes the provided data to target memory at destination address. If cnt is other than one,
         the provided data is replicated cnt times.
@@ -158,19 +280,8 @@ class TargetMem(object):
         Args:
             dst_addr: The target's destination memory address to write to.
             val: Content to be written to the target.
-            cnt: The number of times val shall be repeated when writing to the target.
         """
-        if isinstance(val, int):
-            # note: int.to_bytes raises exception if type_sz != val size
-            bval = val.to_bytes(self._bytes_needed(val), byteorder=self._target.byte_order)
-            self._write_raw(dst_addr, bval * cnt)
-        elif isinstance(val, bytes):
-            self._write_raw(dst_addr, val * cnt)
-        elif isinstance(val, str):
-            bval = bytes(val, encoding='ascii')
-            self._write_raw(dst_addr, bval * cnt)
-        else:
-            raise ValueError('Only int, bytes or str (ascii) are supported as val types')
+        self._mem_access.write(dst_addr, val)
 
     def read(self, src_addr: Union[int, str, TypedPtr], num_bytes: int) -> bytes:
         """
@@ -183,31 +294,7 @@ class TargetMem(object):
         Returns:
             Returns the bytes read from the target.
         """
-        num_remaining: int = num_bytes
-        if isinstance(src_addr, int):
-            addr_to_read = src_addr
-        elif isinstance(src_addr, str):
-            addr_to_read = int(src_addr, 10)
-        elif isinstance(src_addr, TypedPtr):
-            addr_to_read = src_addr.addr
-        else:
-            raise ValueError('Illegal type for src_addr')
-        content = ''
-
-        while num_remaining > 0:
-            bytes_to_read = 1024
-            if num_remaining < 1024:
-                bytes_to_read = num_remaining
-
-            data = self._target.exec(f'-data-read-memory-bytes -o 0 {addr_to_read} {bytes_to_read}')
-            buf = data['payload']['memory'][0]['contents']
-            buf_len = len(buf) / 2
-            content += buf
-
-            num_remaining -= buf_len
-            addr_to_read += buf_len
-
-        return binascii.unhexlify(content)
+        return self._mem_access.read(src_addr, num_bytes)
 
     def reset(self) -> None:
         """
@@ -274,7 +361,7 @@ class TargetMem(object):
         type_sz: int = self.sizeof(var_type)
         p_var: TypedPtr = self.alloc(type_sz * cnt, var_name, align)
         if val is not None:
-            self.write(p_var, val, cnt)
+            self.write(p_var, val * cnt)
 
         # optionally create a gdb convenience variable and cast to concrete type as specified by var_type
         if var_name is not None:

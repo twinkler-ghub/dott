@@ -26,17 +26,17 @@ from typing import List
 import pylink
 from pylink import JLink
 
-from dottmi.dott import DottConf
+import dottmi.dott as dd
 from dottmi.dottexceptions import DottException
 
 
-class _JlinkDott(JLink):
+class JlinkDott(JLink):
 
     def __init__(self, lib=None, log=None, detailed_log=None, error=None, warn=None, unsecure_hook=None):
         # decrease the log level for pylink to warning
         logging.getLogger("pylink").setLevel(logging.WARNING)
 
-        if DottConf.get('jlink_path') is None:
+        if dd.DottConf.get('jlink_path') is None:
             raise DottException('Live_access needs a local J-Link installation. JLink path is not set food DOTT config.')
 
         # Ensure that the same library (and hence the same JLinkDevices.xml) is used by pylink as by the GDB server.
@@ -55,19 +55,19 @@ class _JlinkDott(JLink):
         This function is used to override the corresponding function of pylink-square. The reason to do so
         is to ensure that pylink and gdb are using the same JLINK installation (and hence the same JLinkDevices.xml).
         """
-        yield os.path.join(DottConf.get('jlink_path'), DottConf.get('jlink_lib_name'))
+        yield os.path.join(dd.DottConf.get('jlink_path'), dd.DottConf.get('jlink_lib_name'))
 
 
 # -------------------------------------------------------------------------------------------------
 class TargetDirect(object):
     def __init__(self, device_name: str):
-        jlink_ip_addr = DottConf.get('jlink_server_addr')
-        jlink_port = DottConf.get('jlink_server_port')
-        jlink_serial = DottConf.get('jlink_serial')
+        jlink_ip_addr = dd.DottConf.get('jlink_server_addr')
+        jlink_port = dd.DottConf.get('jlink_server_port')
+        jlink_serial = dd.DottConf.get('jlink_serial')
 
         jlink_addr_port = f'{jlink_ip_addr}:{jlink_port}' if jlink_ip_addr is not None else None
 
-        self._jlink = _JlinkDott()
+        self._jlink = JlinkDott()
         self._jlink.open(jlink_serial, jlink_addr_port)
         self._jlink.connect(device_name, verbose=False)
 

@@ -23,10 +23,16 @@ import os
 import socket
 
 import pigpio
+import pytest
 
-from dottmi.fixtures import *  # note: it is important to fully import dottmi.fixtures
+# import auto-use fixtures provided by DOTT (used for cleanup at end of test run)
+# import pytest_configure which adds mem-model selection marker support
+from dottmi.fixtures import dott_auto_connect_and_disconnect, dott_auto_func_cleanup, pytest_configure
 
 # set working directory to the folder which contains this conftest file
+from dottmi.dott import DottConf
+from dottmi.dott import dott
+
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # silence the debug output from matplotlib
