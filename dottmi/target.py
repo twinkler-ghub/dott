@@ -199,7 +199,7 @@ class Target(NotifySubscriber):
     ###############################################################################################
     # General-purpose wrappers for on target command execution/evaluation
 
-    def eval(self, expr: str) -> Union[int, float, bool, str, None]:
+    def eval(self, expr: str, timeout:float=None) -> Union[int, float, bool, str, None]:
         """
         This method takes an expression to be evaluated. It is assumed that the target is halted when calling eval.
         An expression is every valid expression in the current program context such as registers, local or global
@@ -214,11 +214,12 @@ class Target(NotifySubscriber):
 
         Args:
             expr: The expression to be evaluation in the current context of the target.
+            timeout: Optional timeout for eval call. Only needed if eval does not return because, e.g., hitting an exception.
 
         Returns:
             The evaluation result converted to a suitable Python data type.
         """
-        res = self.exec(f'-data-evaluate-expression "{expr}"')
+        res = self.exec(f'-data-evaluate-expression "{expr}"', timeout=timeout)
         if res is None:
             log.warn(f'Eval of {expr} did not succeed (return value is None)!')
             return None
