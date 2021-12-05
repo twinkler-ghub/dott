@@ -261,20 +261,25 @@ class DottConf:
             raise Exception('Runtime components neither found in DOTT data path nor in DOTTRUNTIME folder.')
 
     @staticmethod
-    def _get_jlink_path(segger_path: str, segger_lib_name: str) -> Tuple[str, str, int]:
+    def _get_jlink_path(segger_paths: List[str], segger_lib_name: str, jlink_gdb_server_binary: str) -> Tuple[str, str, int]:
         all_libs = {}
-        libs = glob.glob(os.path.join(segger_path, '**', segger_lib_name), recursive=True)
 
-        for lib in libs:
-            try:
-                clib = CDLL(lib)
-            except OSError:
-                # Note: On Linux, Segger provides symlinks in the x86 folder to the 32bit version of the the 
-                # JLink library using the 64bit library name. Attempting to load this library on a 64bit system
-                # results in an exception.
-                continue
-            ver = clib.JLINKARM_GetDLLVersion()
-            all_libs[ver] = lib
+        for search_path in segger_paths:
+            libs = glob.glob(os.path.join(search_path, '**', segger_lib_name), recursive=True)
+
+            for lib in libs:
+                try:
+                    if not os.path.exists(f'{os.path.dirname(lib)}{os.path.sep}{jlink_gdb_server_binary}'):
+                        # Skip dirs which contain a JLINK dll but no GDB server executable (e.g., Ozone install folders).
+                        continue
+                    clib = CDLL(lib)
+                except OSError:
+                    # Note: On Linux, Segger provides symlinks in the x86 folder to the 32bit version of the the
+                    # JLink library using the 64bit library name. Attempting to load this library on a 64bit system
+                    # results in an exception.
+                    continue
+                ver = clib.JLINKARM_GetDLLVersion()
+                all_libs[ver] = lib
 
         jlink_path: str = ''
         jlink_version: str = '0'
@@ -310,18 +315,18 @@ class DottConf:
 
         # JLINK gdb server
         if platform.system() == 'Linux':
-            jlink_default_path = str(Path('/opt/SEGGER'))
+            jlink_default_path = [str(Path('/opt/SEGGER'))]
             jlink_gdb_server_binary = 'JLinkGDBServerCLExe'
             jlink_lib_name = 'libjlinkarm.so'
         else:
-            jlink_default_path = str(Path('C:/Program Files (x86)/SEGGER'))
+            jlink_default_path = [str(Path('C:/Program Files (x86)/SEGGER')), str(Path('C:/Program Files/SEGGER'))]
             jlink_gdb_server_binary = 'JLinkGDBServerCL.exe'
             jlink_lib_name = 'JLink_x64.dll'
 
         # the DOTTJLINKPATH environment variable overrides the default location of the Segger JLink package
         if 'DOTTJLINKPATH' in os.environ.keys():
             log.info(f'Overriding default JLink path ({jlink_default_path}) with DOTTJLINKPATH ({os.environ["DOTTJLINKPATH"]})')
-            jlink_default_path = os.environ['DOTTJLINKPATH']
+            jlink_default_path = [os.environ['DOTTJLINKPATH']]
 
         # if a dott.ini is found in the working directory then parse it
         if os.path.exists(os.getcwd() + os.sep + dott_ini):
@@ -395,7 +400,7 @@ class DottConf:
         log.info(f'Device endianess:      {DottConf.conf["device_endianess"]}')
 
         # determine J-Link path and version
-        jlink_path, jlink_lib_name, jlink_version = DottConf._get_jlink_path(jlink_default_path, jlink_lib_name)
+        jlink_path, jlink_lib_name, jlink_version = DottConf._get_jlink_path(jlink_default_path, jlink_lib_name, jlink_gdb_server_binary)
         DottConf.conf["jlink_path"] = jlink_path
         DottConf.conf["jlink_lib_name"] = jlink_lib_name
         DottConf.conf["jlink_version"] = jlink_version
@@ -457,7 +462,7 @@ class DottConf:
             if 'gdb_server_binary' in DottConf.conf:
                 if not os.path.exists(DottConf.conf['gdb_server_binary']):
                     raise Exception(f'GDB server binary {DottConf.conf["gdb_server_binary"]} ({dott_ini}) not found!')
-            elif os.path.exists(jlink_default_path):
+            elif os.path.exists(jlink_path):
                 DottConf.conf['gdb_server_binary'] = str(Path(f'{jlink_path}/{jlink_gdb_server_binary}'))
             else:
                 # As a last option we check if the GDB server binary is in PATH
