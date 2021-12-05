@@ -3,7 +3,7 @@
 #
 # The following list of requirements is more intended to get you stared (mot probably in a venv) when you plan to
 # work on DOTT itself (i.e., add new features, fix bugs, ...)
-ams-dott-runtime==1.2
+ams-dott-runtime==1.2.0
 pygdbmi==0.10.0.1
 pylink-square
 pytest
