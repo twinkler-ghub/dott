@@ -19,6 +19,7 @@
 # - Thomas Winkler, ams AG, thomas.winkler@ams.com
 
 import logging
+import os
 import threading
 import time
 from pathlib import Path, PurePosixPath
@@ -156,7 +157,6 @@ class Target(NotifySubscriber):
             self._gdb_server.shutdown()
             self._gdb_server = None
 
-
     ###############################################################################################
     # Properties
 
@@ -199,7 +199,7 @@ class Target(NotifySubscriber):
     ###############################################################################################
     # General-purpose wrappers for on target command execution/evaluation
 
-    def eval(self, expr: str, timeout:float=None) -> Union[int, float, bool, str, None]:
+    def eval(self, expr: str, timeout: float = None) -> Union[int, float, bool, str, None]:
         """
         This method takes an expression to be evaluated. It is assumed that the target is halted when calling eval.
         An expression is every valid expression in the current program context such as registers, local or global
@@ -415,3 +415,24 @@ class Target(NotifySubscriber):
         is outside the control/awareness of GDB.
         """
         self.cli_exec('flushregs')
+
+    def reg_cm_xpsr_to_str(self, xpsr: int) -> str:
+        """
+        Decodes the given xPSR value and returns a human-readable string (spanning multiple lines) which describes the
+        xPSR content of an Arm Cortex-M MCU.
+
+        Args:
+            xpsr: xPSR content. Obtain the value with Target::eval('$xpsr').
+
+        Returns: Multi-line string with human-readable description of xPSR content. Ready for printing/logging.
+        """
+        ret: str = f'xPSR: 0b{xpsr:032b} (0x{xpsr:08x})' + os.linesep
+        ret += f'negative (N):. ..... {(xpsr & (0b1 << 31)) >> 31}' + os.linesep
+        ret += f'zero (Z): .......... {(xpsr & (0b1 << 30)) >> 30}' + os.linesep
+        ret += f'carry (C): ......... {(xpsr & (0b1 << 29)) >> 29}' + os.linesep
+        ret += f'overflow (V): ...... {(xpsr & (0b1 << 28)) >> 28}' + os.linesep
+        ret += f'cumulative sat. (Q): {(xpsr & (0b1 << 27)) >> 27}' + os.linesep
+        ret += f'if/then/else (IT): . {(xpsr & (0b11 << 25)) >> 25:02b}     (IT[1:0)' + os.linesep
+        ret += f'thumb state (T): ..  {(xpsr & (0b1 << 24)) >> 24}' + os.linesep
+        ret += f'gt or equal (GE): .. {(xpsr & (0b1111 << 16)) >> 16}' + os.linesep
+        ret += f'if/then/else (IT): . {(xpsr & (0b111111 << 10)) >> 10:06b} (IT[7:2)' + os.linesep
