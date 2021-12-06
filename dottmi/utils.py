@@ -327,6 +327,10 @@ def cast_str(data: Union[str, bytes]) -> Union[int, float, bool, str]:
         return True
 
     try:
+        if data.startswith('@0x'):
+            # GDB returns CPP references (e.g., "MyFoo& GetInstance();" ) as @0xAABBCCDD). Stripping the leading @ here.
+            data = data.lstrip('@')
+
         if data.startswith('0x'):
             tmp = data
             if ' <' in tmp:
