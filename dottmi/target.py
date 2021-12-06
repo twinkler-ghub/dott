@@ -287,7 +287,22 @@ class Target(NotifySubscriber):
             # note: we are relying on the cli here since the MI command '-exec-return' does not support return values
             self.cli_exec(f'return {ret_val}')
 
-    def halt(self) -> None:
+    def halt(self, halt_in_it_block: bool = False) -> None:
+        """
+        Halts the target.
+
+        Args:
+            halt_in_it_block: A target halt may happen while the target is executing an IT block. In this case, calls
+            to eval() will fail if they involved function calls (branches) and the target might become unresponsive.
+            To avoid this type of situation, the halt command performs instruction stepping if it detects that the
+            target was halted in an IT block. Instruction stepping is performed until the IT block is complete and then
+            halt() returns.
+            This single stepping is the default behavior of halt and can be deactivated by setting the halt_in_it_block
+            to True. In this case, it is up to the user to check that the target is not halted in an IT block. If the
+            user attempts to perform a function call, while the target is halted she either performs the same single
+            instruction stepping strategy of backs up xPSR and zeros out the xPSR IT bits before performing a function
+            call with eval(). After the function call, the xPSR has to be restored form the saved value.
+        """
         # wait until we get a notification that the target actually is stopped
         num_tries = 20
         with self._cv_target_running:
@@ -297,6 +312,11 @@ class Target(NotifySubscriber):
                 num_tries -= 1
         if num_tries <= 0:
             raise Exception('Target execution could not be halted!')
+
+        if not halt_in_it_block:
+            # check if we have halted in an IT block; if yes, do instruction stepping until we have left the IT block
+            while self.reg_xpsr_in_it_block(self.eval('$xpsr')):
+                self.step_inst()
 
     def step(self):
         with self._cv_target_running:
@@ -416,7 +436,7 @@ class Target(NotifySubscriber):
         """
         self.cli_exec('flushregs')
 
-    def reg_cm_xpsr_to_str(self, xpsr: int) -> str:
+    def reg_xpsr_to_str(self, xpsr: int) -> str:
         """
         Decodes the given xPSR value and returns a human-readable string (spanning multiple lines) which describes the
         xPSR content of an Arm Cortex-M MCU.
@@ -433,6 +453,22 @@ class Target(NotifySubscriber):
         ret += f'overflow (V): ...... {(xpsr & (0b1 << 28)) >> 28}' + os.linesep
         ret += f'cumulative sat. (Q): {(xpsr & (0b1 << 27)) >> 27}' + os.linesep
         ret += f'if/then/else (IT): . {(xpsr & (0b11 << 25)) >> 25:02b}     (IT[1:0)' + os.linesep
-        ret += f'thumb state (T): ..  {(xpsr & (0b1 << 24)) >> 24}' + os.linesep
+        ret += f'thumb state (T): ... {(xpsr & (0b1 << 24)) >> 24}' + os.linesep
         ret += f'gt or equal (GE): .. {(xpsr & (0b1111 << 16)) >> 16}' + os.linesep
         ret += f'if/then/else (IT): . {(xpsr & (0b111111 << 10)) >> 10:06b} (IT[7:2)' + os.linesep
+
+        return ret
+
+    def reg_xpsr_in_it_block(self, xpsr: int) -> bool:
+        """
+        Returns True if the provided xpsr value indicates that the Arm Cortex-M processor currently is executing
+        an if/then instruction (i.e., is in an IT block with IT bits in xPSR set).
+
+        Args:
+            xpsr: xPSR content. Obtain the value with Target::eval('$xpsr').
+
+        Returns: Returns True if is executing an IT block, false otherwise.
+        """
+        if (xpsr & (0b11 << 25)) >> 25 > 0 or (xpsr & (0b111111 << 10)) >> 10 > 0:
+            return True
+        return False
