@@ -369,7 +369,7 @@ class DottConf:
 
         if 'bl_symbol_addr' not in DottConf.conf:
             DottConf.conf['bl_symbol_addr'] = 0x0
-        elif 'bl_symbol_addr' == '':
+        elif DottConf.conf['bl_symbol_addr'].strip() == '':
             DottConf.conf['bl_symbol_addr'] = 0x0
         else:
             DottConf.conf['bl_symbol_addr'] = int(DottConf.conf['bl_symbol_addr'], base=16)
