@@ -80,6 +80,8 @@ class Target(NotifySubscriber):
         if auto_connect:
             self.gdb_client_connect()
 
+        self._xpsr_reg_name = 'xpsr'  # Segger GDB server uses all lower-clase name for xpsr register
+
     def gdb_client_connect(self) -> None:
         """
         Connects the GDB client instance to the GDB server.
@@ -104,7 +106,18 @@ class Target(NotifySubscriber):
         gdb_script_file = str(PurePosixPath(gdb_script_file))
         self.cli_exec(f'source {gdb_script_file}')
 
+        self._update_xpsr_name()
         self._gdb_client_is_connected = True
+
+    def _update_xpsr_name(self):
+        # Segger and OpenOCD don't agree on xpsr naming (all lowercase vs. mixed case)
+        if 'xPSR' in self.reg_get_names():
+            self._xpsr_reg_name = 'xPSR'
+            log.info("Using OpenOCD's xPSR naming")
+        else:
+            # falling back to Segger's naming as default
+            self._xpsr_reg_name = 'xpsr'
+            log.info("Using Segger's xpsr naming")
 
     def gdb_client_disconnect(self) -> None:
         """
@@ -313,10 +326,10 @@ class Target(NotifySubscriber):
         if num_tries <= 0:
             raise Exception('Target execution could not be halted!')
 
-        if not halt_in_it_block:
-            # check if we have halted in an IT block; if yes, do instruction stepping until we have left the IT block
-            while self.reg_xpsr_in_it_block(self.eval('$xpsr')):
-                self.step_inst()
+        # if not halt_in_it_block:
+        #     # check if we have halted in an IT block; if yes, do instruction stepping until we have left the IT block
+        #     while self.reg_xpsr_in_it_block(self.eval(self._xpsr_reg_name)):
+        #         self.step_inst()
 
     def step(self):
         with self._cv_target_running:
@@ -442,7 +455,8 @@ class Target(NotifySubscriber):
         xPSR content of an Arm Cortex-M MCU.
 
         Args:
-            xpsr: xPSR content. Obtain the value with Target::eval('$xpsr').
+            xpsr: xPSR content. Obtain the value with Target::eval('$xpsr') for Segger or  Target::eval('$xPSR')
+            for OpenOCD.
 
         Returns: Multi-line string with human-readable description of xPSR content. Ready for printing/logging.
         """
@@ -465,7 +479,8 @@ class Target(NotifySubscriber):
         an if/then instruction (i.e., is in an IT block with IT bits in xPSR set).
 
         Args:
-            xpsr: xPSR content. Obtain the value with Target::eval('$xpsr').
+            xpsr: xPSR content. Obtain the value with Target::eval('$xpsr') for Segger or  Target::eval('$xPSR')
+            for OpenOCD.
 
         Returns: Returns True if is executing an IT block, false otherwise.
         """
