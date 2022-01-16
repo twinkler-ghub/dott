@@ -30,6 +30,7 @@ from pathlib import Path
 import psutil
 from psutil import NoSuchProcess
 
+import dottmi.target
 from dottmi.dottexceptions import DottException
 from dottmi.gdb_mi import GdbMi
 from dottmi.gdbcontrollerdott import GdbControllerDott
@@ -236,3 +237,30 @@ class GdbClient(object):
     @property
     def gdb_mi(self) -> GdbMi:
         return self._gdb_mi
+
+
+class GdbServerQuirks(object):
+    @staticmethod
+    def instantiate_quirks(dt: 'dottmi.target.Target') -> 'GdbServerQuirks':
+        # Segger and OpenOCD don't agree on xpsr naming (all lowercase vs. mixed case)
+        if 'xPSR' in dt.reg_get_names():
+            log.info("Using OpenOCD's xPSR naming")
+            return GdbServerQuirks('xPSR',
+                                   'monitor rbp all')
+        else:
+            # falling back to Segger's naming as default
+            log.info("Using Segger's xpsr naming")
+            return GdbServerQuirks('xpsr',
+                                   'monitor clrbp')
+
+    def __init__(self, xpsr_name: str, clear_all_bps: str):
+        self._xpsr_name: str = xpsr_name
+        self._clear_all_bps: str = clear_all_bps
+
+    @property
+    def xpsr_name(self) -> str:
+        return self._xpsr_name
+
+    @property
+    def clear_all_bps(self) -> str:
+        return self._clear_all_bps

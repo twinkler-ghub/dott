@@ -29,7 +29,7 @@ from typing import List
 from dottmi.breakpointhandler import BreakpointHandler
 from dottmi.dott import DottConf
 from dottmi.dottexceptions import DottException
-from dottmi.gdb import GdbClient, GdbServer
+from dottmi.gdb import GdbClient, GdbServer, GdbServerQuirks
 from dottmi.gdb_mi import NotifySubscriber
 from dottmi.symbols import BinarySymbols
 from dottmi.target_mem import TargetMem, TargetMemNoAlloc
@@ -77,10 +77,10 @@ class Target(NotifySubscriber):
         # flag which indicates if gdb client is attached to target
         self._gdb_client_is_connected = False
 
+        self._gdb_srv_quirks: GdbServerQuirks = None
+
         if auto_connect:
             self.gdb_client_connect()
-
-        self._xpsr_reg_name = 'xpsr'  # Segger GDB server uses all lower-clase name for xpsr register
 
     def gdb_client_connect(self) -> None:
         """
@@ -106,18 +106,8 @@ class Target(NotifySubscriber):
         gdb_script_file = str(PurePosixPath(gdb_script_file))
         self.cli_exec(f'source {gdb_script_file}')
 
-        self._update_xpsr_name()
+        self._gdb_srv_quirks = GdbServerQuirks.instantiate_quirks(self)
         self._gdb_client_is_connected = True
-
-    def _update_xpsr_name(self):
-        # Segger and OpenOCD don't agree on xpsr naming (all lowercase vs. mixed case)
-        if 'xPSR' in self.reg_get_names():
-            self._xpsr_reg_name = 'xPSR'
-            log.info("Using OpenOCD's xPSR naming")
-        else:
-            # falling back to Segger's naming as default
-            self._xpsr_reg_name = 'xpsr'
-            log.info("Using Segger's xpsr naming")
 
     def gdb_client_disconnect(self) -> None:
         """
@@ -326,10 +316,10 @@ class Target(NotifySubscriber):
         if num_tries <= 0:
             raise Exception('Target execution could not be halted!')
 
-        # if not halt_in_it_block:
-        #     # check if we have halted in an IT block; if yes, do instruction stepping until we have left the IT block
-        #     while self.reg_xpsr_in_it_block(self.eval(self._xpsr_reg_name)):
-        #         self.step_inst()
+        if not halt_in_it_block:
+            # check if we have halted in an IT block; if yes, do instruction stepping until we have left the IT block
+            while self.reg_xpsr_in_it_block(self.eval(f'${self._gdb_srv_quirks.xpsr_name}')):
+                self.step_inst()
 
     def step(self):
         with self._cv_target_running:
@@ -411,7 +401,7 @@ class Target(NotifySubscriber):
     def bp_clear_all(self) -> None:
         self.cli_exec('dott-bp-nostop-delete')
         self.exec('-break-delete')
-        self.cli_exec('monitor clrbp')
+        self.cli_exec(self._gdb_srv_quirks.clear_all_bps)
 
     def bp_get_count(self) -> int:
         res = self.exec('-break-list')
