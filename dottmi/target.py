@@ -266,7 +266,7 @@ class Target(NotifySubscriber):
             self.exec('-target-download')
 
     def reset(self, flush_reg_cache: bool = True) -> None:
-        self.cli_exec('monitor reset')
+        self.cli_exec(self._gdb_srv_quirks.monitor_reset)
         if flush_reg_cache:
             self.reg_flush_cache()
 
@@ -401,7 +401,7 @@ class Target(NotifySubscriber):
     def bp_clear_all(self) -> None:
         self.cli_exec('dott-bp-nostop-delete')
         self.exec('-break-delete')
-        self.cli_exec(self._gdb_srv_quirks.clear_all_bps)
+        self.cli_exec(self._gdb_srv_quirks.monitor_clear_all_bps)
 
     def bp_get_count(self) -> int:
         res = self.exec('-break-list')
