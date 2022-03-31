@@ -91,6 +91,38 @@ class TypedPtr:
         """
         return self._target.eval(f'*({self.__str__()})')
 
+    def __getitem__(self, key) -> Union[int, float, bool, str, None]:
+        """
+        Allows access to items pointed to by TypedPtr in index notation. Example:
+        p = dott().target.mem.alloc_type('uint32_t', cnt=16)
+        p[8] = 0xdeadbeef
+        print('0x%x' % p[8])
+
+        Important: The implementation does not perform array index checking.
+
+        Args:
+            key: Index used for accessing the array data pointed to by the TypedPtr instance.
+
+        Returns: The value at index key.
+        """
+        return self._target.eval(f'{self.__str__()}[{key}]')
+
+    def __setitem__(self, key, value) -> None:
+        """
+        Allows access to items pointed to by TypedPtr in index notation. Example:
+        p = dott().target.mem.alloc_type('uint32_t', cnt=16)
+        p[8] = 0xdeadbeef
+        print('0x%x' % p[8])
+
+        Important: The implementation does not perform array index checking.
+
+        Args:
+            key: Index used for accessing the array data pointed to by the TypedPtr instance.
+
+        Returns: The value at index key.
+        """
+        self._target.eval(f'{self.__str__()}[{key}] = {value}')
+
     def __str__(self) -> str:
         """
         This function returns a string containing address in hex (pre-fixed with 0x) together with the type of
