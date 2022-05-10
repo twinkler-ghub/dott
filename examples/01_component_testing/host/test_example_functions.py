@@ -17,7 +17,7 @@
 
 # Authors:
 # - Thomas Winkler, ams AG, thomas.winkler@ams.com
-
+from dottmi.target_mem import TypedPtr
 from dottmi.utils import DottConvert
 from dottmi.dott import DottConf, dott
 from dottmi.breakpoint import HaltPoint, InterceptPoint, InterceptPointCmds
@@ -291,18 +291,31 @@ class TestExampleFunctions(object):
         assert(len(msg) - 1 == res), f'expected: {len(msg)}, is: {res}'
 
     ##
-    # \amsTestDesc Test function which takes a an integer array as argument and returns the sum of the elements.
+    # \amsTestDesc Test function which takes an integer array as argument and returns the sum of the elements.
     # \amsTestPrec None
     # \amsTestImpl Call target function with a integer array as argument.
     # \amsTestResp Return value should be the sum of the array elements.
     # \amsTestType Component
     # \amsTestReqs RS_0110, RS_0230, RS_0240, RS_0270
     def test_example_SumElements(self, target_load, target_reset):
+        dt = dott().target
+
         elements = [0, 1, 2, 65535, 99]
+
         elements_bytes = DottConvert.uint16_to_bytes(elements)
-        addr = dott().target.mem.alloc_type('uint16_t', cnt=len(elements), val=0x0)
-        dott().target.mem.write(addr, bytes(elements_bytes))
-        res = dott().target.eval(f'example_SumElements({addr}, {len(elements)})')
+        p: TypedPtr = dt.mem.alloc_type('uint16_t', cnt=len(elements), val=0x0)
+        dt.mem.write(p, bytes(elements_bytes))
+
+        res = dt.eval(f'example_SumElements({p}, {len(elements)})')
+        assert (sum(elements) == res), f'expected: {sum(elements)}, is: {res}'
+
+        # update some elements. note: index notation also works for on-target memory (arrays)
+        elements[0] = 128
+        elements[3] = 99
+        p[0] = elements[0]
+        p[3] = elements[3]
+
+        res = dt.eval(f'example_SumElements({p}, {len(elements)})')
         assert (sum(elements) == res), f'expected: {sum(elements)}, is: {res}'
 
     ##
