@@ -261,7 +261,7 @@ class DottConf:
             raise Exception('Runtime components neither found in DOTT data path nor in DOTTRUNTIME folder.')
 
     @staticmethod
-    def _get_jlink_path(segger_paths: List[str], segger_lib_name: str, jlink_gdb_server_binary: str) -> Tuple[str, str, int]:
+    def _get_jlink_path(segger_paths: List[str], segger_lib_name: str, jlink_gdb_server_binary: str) -> Tuple[str, str, str]:
         all_libs = {}
 
         for search_path in segger_paths:
@@ -294,7 +294,7 @@ class DottConf:
                 log.warn(f'The J-Link software with the highest version (in {jlink_path}) has known '
                          f'issues related to SRAM download and STM32 MCUs. Please upgrade to at least v6.52d')
         else:
-            raise DottException(f'JLink software (esp. {segger_lib_name}) not found in path {segger_path}.')
+            raise DottException(f'JLink software (esp. {segger_lib_name}) not found in path {jlink_path}.')
         jlink_version = f'{str(jlink_version)[:1]}.{str(jlink_version)[1:3]}{chr(int(str(jlink_version)[-2:]) + 0x60)}'
 
         return jlink_path, segger_lib_name, jlink_version

@@ -246,21 +246,28 @@ class GdbServerQuirks(object):
         if 'xPSR' in dt.reg_get_names():
             log.info("Using OpenOCD's xPSR naming")
             return GdbServerQuirks('xPSR',
-                                   'monitor rbp all')
+                                   'monitor rbp all',
+                                   'monitor reset halt')
         else:
             # falling back to Segger's naming as default
             log.info("Using Segger's xpsr naming")
             return GdbServerQuirks('xpsr',
-                                   'monitor clrbp')
+                                   'monitor clrbp',
+                                   'monitor reset')
 
-    def __init__(self, xpsr_name: str, clear_all_bps: str):
+    def __init__(self, xpsr_name: str, monitor_clr_all_bps: str, monitor_reset: str):
         self._xpsr_name: str = xpsr_name
-        self._clear_all_bps: str = clear_all_bps
+        self._monitor_clr_all_bps: str = monitor_clr_all_bps
+        self._monitor_reset: str = monitor_reset
 
     @property
     def xpsr_name(self) -> str:
         return self._xpsr_name
 
     @property
-    def clear_all_bps(self) -> str:
-        return self._clear_all_bps
+    def monitor_clear_all_bps(self) -> str:
+        return self._monitor_clr_all_bps
+
+    @property
+    def monitor_reset(self) -> str:
+        return self._monitor_reset
