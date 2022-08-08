@@ -22,6 +22,7 @@ import logging
 import os
 import threading
 import time
+import datetime
 from pathlib import Path, PurePosixPath
 from typing import Dict, Union
 from typing import List
@@ -55,7 +56,7 @@ class Target(NotifySubscriber):
 
         # condition variable and status flag used to implement helpers
         # allowing callers to wait until target is stopped or running
-        self._cv_target_running: threading.Condition = threading.Condition()
+        self._cv_target_state: threading.Condition = threading.Condition()
         self._is_target_running: bool = False
 
         # instantiate delegates
@@ -271,17 +272,8 @@ class Target(NotifySubscriber):
             self.reg_flush_cache()
 
     def cont(self) -> None:
-        # wait until we get a notification that the target actually is running
-        num_tries = 40
-        with self._cv_target_running:
-            while not self.is_running() and num_tries > 0:
-                self.exec_noblock('-exec-continue')
-                self._cv_target_running.wait(timeout=0.1)
-                num_tries -= 1
-        if num_tries <= 0:
-            raise Exception('Target execution could not be continued!')
-        else:
-            time.sleep(self._startup_delay)
+        self.exec('-exec-continue')
+        self.wait_running()
 
     def ret(self, ret_val: Union[int, str] = None) -> None:
         if ret_val is None:
@@ -306,15 +298,8 @@ class Target(NotifySubscriber):
             instruction stepping strategy of backs up xPSR and zeros out the xPSR IT bits before performing a function
             call with eval(). After the function call, the xPSR has to be restored form the saved value.
         """
-        # wait until we get a notification that the target actually is stopped
-        num_tries = 20
-        with self._cv_target_running:
-            while self.is_running() and num_tries > 0:
-                self.exec_noblock('-exec-interrupt --all')
-                self._cv_target_running.wait(timeout=0.1)
-                num_tries -= 1
-        if num_tries <= 0:
-            raise Exception('Target execution could not be halted!')
+        self.exec('-exec-interrupt --all')
+        self.wait_halted()
 
         if not halt_in_it_block:
             # check if we have halted in an IT block; if yes, do instruction stepping until we have left the IT block
@@ -322,16 +307,16 @@ class Target(NotifySubscriber):
                 self.step_inst()
 
     def step(self):
-        with self._cv_target_running:
+        with self._cv_target_state:
             self._is_target_running = True
-        self.exec('-exec-next')
+        self.exec('-exec-step')
         while self.is_running():
             pass
 
     def step_inst(self):
-        with self._cv_target_running:
+        with self._cv_target_state:
             self._is_target_running = True
-        self.exec('-exec-next-instruction')
+        self.exec('-exec-step-instruction')
         while self.is_running():
             pass
 
@@ -343,18 +328,18 @@ class Target(NotifySubscriber):
     def _notify_callback(self):
         # Note: The wait_for_notification call immediately returns the new message as _notify_callback was called
         # by the notifier upon the availability of a the new message. Hence, no actual waiting here.
-        notify_msg = self.wait_for_notification()['message']
-        with self._cv_target_running:
+        msg = self.wait_for_notification()
+        notify_msg = msg['message']
+        with self._cv_target_state:
             if 'stopped' in notify_msg:
                 # Note: The call to _wait_until_halted is needed here since a 'stopped' notification from GDB is not
                 # always in-sync with GDB's internal target state. Hence, we explicitly wait until GDB's internal
                 # state agrees with the notification status.
-                self._internal_wait_halted()
                 self._is_target_running = False
-                self._cv_target_running.notify_all()
+                self._cv_target_state.notify_all()
             elif 'running' in notify_msg:
                 self._is_target_running = True
-                self._cv_target_running.notify_all()
+                self._cv_target_state.notify_all()
 
     def _internal_wait_halted(self, wait_secs: float = 1.0):
         start_time = time.time()
@@ -377,23 +362,35 @@ class Target(NotifySubscriber):
         Returns:
             Returns True if the target is running, false otherwise.
         """
-        with self._cv_target_running:
+        with self._cv_target_state:
             return self._is_target_running
 
     def wait_halted(self, wait_secs: float = 1.0) -> None:
         """
-        Wait until target is halted. Not that this command does not actually halt the target. To do so, explicitly call
-        halt() before this command. The wait_halted command is typically not needed in user code as halt ensures that
+        Wait until target is halted. The wait_halted command is typically not needed in user code as halt ensures that
         the target is halted when it returns.
 
         Args:
             wait_secs: Number of seconds to wait before a DottExeception is thrown.
         """
-        with self._cv_target_running:
+        with self._cv_target_state:
             if self._is_target_running:
-                self._cv_target_running.wait(wait_secs)
+                self._cv_target_state.wait(wait_secs)
             if self._is_target_running:
                 raise DottException(f'Target did not change to "halted" state within {wait_secs} seconds.')
+
+    def wait_running(self, wait_secs: float = 0) -> None:
+        """
+        Wait until target is running. The wait_running command is typically not needed in user code as cont ensures that
+        the target is running when it returns.
+
+        Args:
+            wait_secs: Number of seconds to wait before a DottExeception is thrown.
+        """
+        with self._cv_target_state:
+            if not self._cv_target_state:
+                self._cv_target_state.wait(wait_secs)
+
 
     ###############################################################################################
     # Breakpoint-related target commands
