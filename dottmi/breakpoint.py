@@ -129,7 +129,7 @@ class HaltPoint(Breakpoint):
 
     def reached_internal(self, payload=None) -> None:
         self._hits += 1
-        self._dott_target.wait_halted(wait_secs=1)
+        self._dott_target.wait_halted()
         self.reached()
         # queue is used to notify one potentially waiting thread
         self._q.put(None, block=False)

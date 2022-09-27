@@ -57,7 +57,11 @@ class Target(NotifySubscriber):
         # condition variable and status flag used to implement helpers
         # allowing callers to wait until target is stopped or running
         self._cv_target_state: threading.Condition = threading.Condition()
-        self._is_target_running: bool = False
+        self._is_target_running: bool = True
+
+        # Default number of seconds to wait for a target state change (i.e., halt -> running and vice versa) before
+        # raising a timeout exception.
+        self._state_change_wait_secs: float = 5.0
 
         # instantiate delegates
         self._symbols: BinarySymbols = BinarySymbols(self)
@@ -200,6 +204,17 @@ class Target(NotifySubscriber):
     def startup_delay(self, delay: float):
         self._startup_delay = delay
 
+    @property
+    def state_change_wait_secs(self) -> float:
+        """
+        Timeout in seconds used by wait_running and wait_halted members before raising a timeout exception.
+        """
+        return self._state_change_wait_secs
+
+    @state_change_wait_secs.setter
+    def state_change_wait_secs(self, secs: float) -> None:
+        self._state_change_wait_secs = secs
+
     ###############################################################################################
     # General-purpose wrappers for on target command execution/evaluation
 
@@ -272,6 +287,12 @@ class Target(NotifySubscriber):
             self.reg_flush_cache()
 
     def cont(self) -> None:
+        """
+        Continues target execution.
+        """
+        if self.is_running():
+            return
+
         self.exec('-exec-continue')
         self.wait_running()
 
@@ -284,7 +305,7 @@ class Target(NotifySubscriber):
 
     def halt(self, halt_in_it_block: bool = False) -> None:
         """
-        Halts the target.
+        Halts target execution.
 
         Args:
             halt_in_it_block: A target halt may happen while the target is executing an IT block. In this case, calls
@@ -298,6 +319,9 @@ class Target(NotifySubscriber):
             instruction stepping strategy of backs up xPSR and zeros out the xPSR IT bits before performing a function
             call with eval(). After the function call, the xPSR has to be restored form the saved value.
         """
+        if not self.is_running():
+            return
+
         self.exec('-exec-interrupt --all')
         self.wait_halted()
 
@@ -323,11 +347,11 @@ class Target(NotifySubscriber):
     ###############################################################################################
     # Status-related target commands
 
-    # This callback function is called from from gdbmi response handler when a new notification
+    # This callback function is called from gdbmi response handler when a new notification
     # with at target status change notification is received.
     def _notify_callback(self):
         # Note: The wait_for_notification call immediately returns the new message as _notify_callback was called
-        # by the notifier upon the availability of a the new message. Hence, no actual waiting here.
+        # by the notifier upon the availability of the new message. Hence, no actual waiting here.
         msg = self.wait_for_notification()
         notify_msg = msg['message']
         with self._cv_target_state:
@@ -340,6 +364,8 @@ class Target(NotifySubscriber):
             elif 'running' in notify_msg:
                 self._is_target_running = True
                 self._cv_target_state.notify_all()
+            else:
+                log.warn(f'Unhandled notification: {notify_msg}')
 
     def _internal_wait_halted(self, wait_secs: float = 1.0):
         start_time = time.time()
@@ -365,7 +391,7 @@ class Target(NotifySubscriber):
         with self._cv_target_state:
             return self._is_target_running
 
-    def wait_halted(self, wait_secs: float = 1.0) -> None:
+    def wait_halted(self, wait_secs: float = None) -> None:
         """
         Wait until target is halted. The wait_halted command is typically not needed in user code as halt ensures that
         the target is halted when it returns.
@@ -373,13 +399,16 @@ class Target(NotifySubscriber):
         Args:
             wait_secs: Number of seconds to wait before a DottExeception is thrown.
         """
+        if not wait_secs:
+            wait_secs = self._state_change_wait_secs
+
         with self._cv_target_state:
             if self._is_target_running:
                 self._cv_target_state.wait(wait_secs)
             if self._is_target_running:
                 raise DottException(f'Target did not change to "halted" state within {wait_secs} seconds.')
 
-    def wait_running(self, wait_secs: float = 0) -> None:
+    def wait_running(self, wait_secs: float = None) -> None:
         """
         Wait until target is running. The wait_running command is typically not needed in user code as cont ensures that
         the target is running when it returns.
@@ -387,10 +416,14 @@ class Target(NotifySubscriber):
         Args:
             wait_secs: Number of seconds to wait before a DottExeception is thrown.
         """
-        with self._cv_target_state:
-            if not self._cv_target_state:
-                self._cv_target_state.wait(wait_secs)
+        if not wait_secs:
+            wait_secs = self._state_change_wait_secs
 
+        with self._cv_target_state:
+            if not self._is_target_running:
+                self._cv_target_state.wait(wait_secs)
+            if not self._is_target_running:
+                raise DottException(f'Target did not change to "running" state within {wait_secs} seconds.')
 
     ###############################################################################################
     # Breakpoint-related target commands
