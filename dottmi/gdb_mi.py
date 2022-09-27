@@ -263,6 +263,11 @@ class GdbMiResponseHandler(threading.Thread):
                         notify_reason = None
                         if 'reason' in msg['payload']:
                             notify_reason = msg['payload']['reason']
+                            if type(notify_reason) is list and 'breakpoint-hit' in notify_reason:
+                                # Special case for OpenOCD which returns a list ['signal-received', ''breakpoint-hit]
+                                # instead of just 'breakpoint-hit'.
+                                notify_reason = 'breakpoint-hit'
+                                msg['payload']['reason'] = notify_reason
 
                         already_notified = []
                         if (notify_msg, notify_reason) in self._notify_subscribers:
