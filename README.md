@@ -1,3 +1,8 @@
+```diff
+-IMPORTANT: This version of DOTT is depreacted as of Oct. 2022. Development of DOTT continues here: http://github.com/dott-ng
+```
+
+
 # DOTT - Debugger-Based On-Target Testing
 
 This file provides a short overview about the scope of the Debugger-Based On Target Testing (DOTT)
