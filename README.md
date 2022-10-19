@@ -1,5 +1,6 @@
 ```diff
--IMPORTANT: This version of DOTT is depreacted as of Oct. 2022. Development of DOTT continues here: http://github.com/dott-ng
+- IMPORTANT: This version of DOTT is depreacted as of Oct. 2022.
+-            Development of DOTT continues [here: http://github.com/dott-ng](http://github.com/dott-ng)
 ```
 
 
